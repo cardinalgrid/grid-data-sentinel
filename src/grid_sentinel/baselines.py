@@ -42,3 +42,23 @@ def iqr(series: pd.Series | np.ndarray, k: float = 1.5) -> pd.DataFrame:
     dist = np.maximum(q1 - v, v - q3) / width if width > 0 else np.zeros_like(v)
     flags = np.nan_to_num(dist, nan=0.0) > k
     return _frame(series, dist, k, flags)
+
+
+def modified_zscore(series: pd.Series | np.ndarray, window: int = 24 * 30, k: float = 3.5) -> pd.DataFrame:
+    """Iglewicz-Hoaglin modified z-score on a trailing window: 0.6745 (x - median) / MAD, flag if above k."""
+    s = pd.Series(np.asarray(series, dtype=float))
+    med = s.rolling(window, min_periods=max(24, window // 4)).median().shift(1)
+    mad = (s - med).abs().rolling(window, min_periods=max(24, window // 4)).median().shift(1)
+    z = (0.6745 * (s - med) / mad).abs().to_numpy()
+    flags = np.nan_to_num(z, nan=0.0) > k
+    return _frame(series, z, k, flags)
+
+
+def relative_deviation(series: pd.Series | np.ndarray, window: int = 5, k: float = 0.15) -> pd.DataFrame:
+    """Relative deviation from a centred moving average: |x - mean| / mean, flag if above k (15% by default).
+    The one-line rule common in utility practice."""
+    s = pd.Series(np.asarray(series, dtype=float))
+    mean = s.rolling(window, min_periods=max(2, window // 2), center=True).mean()
+    dev = ((s - mean).abs() / mean).to_numpy()
+    flags = np.nan_to_num(dev, nan=0.0) > k
+    return _frame(series, dev, k, flags)

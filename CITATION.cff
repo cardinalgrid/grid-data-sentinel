@@ -2,7 +2,7 @@ cff-version: 1.2.0
 message: "If you use this software or its results, please cite it as below."
 type: software
 title: "Grid Data Sentinel: anomaly detection and repair for load telemetry with recursive TEDA and sparse autoencoders"
-version: 0.1.0
+version: 0.2.0
 date-released: 2026-09-11
 license: Apache-2.0
 repository-code: "https://github.com/cardinalgrid/grid-data-sentinel"

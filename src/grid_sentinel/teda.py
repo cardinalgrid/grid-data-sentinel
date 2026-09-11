@@ -44,13 +44,18 @@ class RecursiveTEDA:
         distance to the running mean exceeds m^2 times the running variance.
     diff
         Score first differences instead of levels. Recommended for series with a daily cycle.
+    robust
+        When True, a flagged sample enters the running mean and variance clipped to the acceptance
+        boundary (a winsorised update), so that a run of bad readings cannot inflate the variance and hide
+        what follows, nor freeze it. The original algorithm (robust=False) absorbs every sample as is.
     """
 
-    def __init__(self, m: float = 2.6, diff: bool = False) -> None:
+    def __init__(self, m: float = 2.6, diff: bool = False, robust: bool = False) -> None:
         if m <= 0:
             raise ValueError("m must be positive")
         self.m = float(m)
         self.diff = bool(diff)
+        self.robust = bool(robust)
         self.reset()
 
     def reset(self) -> None:
@@ -80,6 +85,7 @@ class RecursiveTEDA:
             value = x
 
         k = self.k
+        prev_mean, prev_var = self.mean, self.variance
         self.mean = ((k - 1) / k) * self.mean + value / k
         self.variance = ((k - 1) / k) * self.variance + (value - self.mean) ** 2 / (k - 1)
 
@@ -89,9 +95,15 @@ class RecursiveTEDA:
             eccentricity = 1.0 / k
         norm_eccentricity = eccentricity / 2.0
         threshold = (self.m**2 + 1.0) / (2.0 * k)
-        return TEDAResult(
-            k, self.mean, self.variance, eccentricity, norm_eccentricity, threshold, norm_eccentricity > threshold
-        )
+        is_anomaly = norm_eccentricity > threshold
+        if is_anomaly and self.robust:
+            # winsorised update: the sample enters the statistics clipped to the acceptance boundary, so
+            # that a run of bad readings neither inflates the variance nor freezes it
+            sigma = np.sqrt(prev_var) if prev_var > 0 else 0.0
+            clipped = float(np.clip(value, prev_mean - self.m * sigma, prev_mean + self.m * sigma))
+            self.mean = ((k - 1) / k) * prev_mean + clipped / k
+            self.variance = ((k - 1) / k) * prev_var + (clipped - self.mean) ** 2 / (k - 1)
+        return TEDAResult(k, self.mean, self.variance, eccentricity, norm_eccentricity, threshold, is_anomaly)
 
     def detect(self, series: pd.Series | np.ndarray) -> pd.DataFrame:
         """Run the detector over a whole series (in order) and return per-sample scores.
