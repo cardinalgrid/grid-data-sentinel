@@ -27,7 +27,7 @@ Benchmark v0.1.0 run 2026-09-11: 20 BA-years (PJM, MISO, ERCO, CISO, SWPP, NYIS,
 
 | Detector | Precision | Recall | F1 | MCC | Spike | Dip | Zero | Stuck | Scale | s/series |
 |---|---|---|---|---|---|---|---|---|---|---|
-| Sparse autoencoder (window 4, code 2) | 0.89 | 0.93 | 0.91 | 0.91 | 0.90 | 0.88 | 0.90 | 0.04 | 0.98 | 0.3 |
+| Sparse autoencoder (window 4, code 2, factor 20) | 0.89 | 0.93 | 0.91 | 0.91 | 0.90 | 0.88 | 0.90 | 0.04 | 0.98 | 0.3 |
 | Recursive TEDA (levels, m=3) | 0.97 | 0.82 | 0.89 | 0.89 | 0.60 | 0.21 | 1.00 | 0.00 | 0.92 | 0.0 |
 | sentinel | 0.87 | 0.92 | 0.87 | 0.88 | 1.00 | 0.64 | 1.00 | 1.00 | 0.94 | 0.1 |
 | Recursive TEDA (differenced, m=3) | 0.72 | 0.20 | 0.29 | 0.36 | 1.00 | 0.64 | 1.00 | 0.00 | 0.20 | 0.0 |

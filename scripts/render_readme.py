@@ -13,7 +13,7 @@ START, END = "<!-- results:start -->", "<!-- results:end -->"
 LABELS = {
     "teda_diff": "Recursive TEDA (differenced, m=3)",
     "teda_level": "Recursive TEDA (levels, m=3)",
-    "autoencoder": "Sparse autoencoder (window 4, code 2)",
+    "autoencoder": "Sparse autoencoder (window 4, code 2, factor 20)",
     "rolling_zscore": "Rolling z-score (168 h, k=3)",
     "hampel": "Hampel filter (24 h, k=3)",
     "iqr": "Global IQR (k=1.5)",
