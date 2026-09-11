@@ -1,0 +1,37 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "grid-data-sentinel"
+version = "0.1.0"
+description = "Anomaly detection and repair for load telemetry: recursive TEDA and sparse autoencoders, benchmarked on public EIA-930 data."
+readme = "README.md"
+license = { text = "Apache-2.0" }
+requires-python = ">=3.10"
+authors = [{ name = "Ricardo W. C. Guerra Filho" }]
+keywords = ["anomaly detection", "load telemetry", "EIA-930", "TEDA", "autoencoder", "data quality", "power systems"]
+dependencies = [
+  "numpy>=1.24",
+  "pandas>=2.0",
+]
+
+[project.optional-dependencies]
+parquet = ["pyarrow>=11"]
+dev = ["pytest>=7", "ruff>=0.4", "pyarrow>=11"]
+
+[project.scripts]
+grid-sentinel = "grid_sentinel.cli:main"
+
+[project.urls]
+Homepage = "https://cardinalgrid.com/sentinel"
+Repository = "https://github.com/cardinalgrid/grid-data-sentinel"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 110

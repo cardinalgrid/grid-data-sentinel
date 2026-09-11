@@ -1,0 +1,36 @@
+cff-version: 1.2.0
+message: "If you use this software or its results, please cite it as below."
+type: software
+title: "Grid Data Sentinel: anomaly detection and repair for load telemetry with recursive TEDA and sparse autoencoders"
+version: 0.1.0
+date-released: 2026-09-11
+license: Apache-2.0
+repository-code: "https://github.com/cardinalgrid/grid-data-sentinel"
+url: "https://cardinalgrid.com/sentinel"
+authors:
+  - family-names: "Guerra Filho"
+    given-names: "Ricardo Wagner Correia"
+    orcid: "https://orcid.org/0000-0001-6699-9951"
+keywords:
+  - anomaly detection
+  - load telemetry
+  - EIA-930
+  - TEDA
+  - autoencoder
+  - data quality
+abstract: >
+  Python package for detecting and repairing anomalous readings in electricity load series: a
+  streaming recursive TEDA detector, a sparse window autoencoder, three reference detectors,
+  labelled anomaly injection, an audited repair step, and a benchmark on public EIA-930 hourly
+  demand.
+references:
+  - type: article
+    title: "Outlier Detection and Correction in Smart Grid Energy Demand Data Using Sparse Autoencoders"
+    journal: Energies
+    year: 2024
+    volume: 17
+    issue: 24
+    doi: 10.3390/en17246403
+    authors:
+      - family-names: "Guerra Filho"
+        given-names: "Ricardo Wagner Correia"
