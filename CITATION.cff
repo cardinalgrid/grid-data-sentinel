@@ -1,10 +1,18 @@
 cff-version: 1.2.0
 message: "If you use this software or its results, please cite it as below."
 type: software
-title: "Grid Data Sentinel: anomaly detection and repair for load telemetry with recursive TEDA and sparse autoencoders"
+title: "Grid Data Sentinel: anomaly detection and repair for load telemetry with recursive TEDA, sparse autoencoders and calendar-aware profiles"
 version: 0.2.0
-date-released: 2026-09-11
+date-released: 2026-09-12
 license: Apache-2.0
+doi: 10.5281/zenodo.22726014
+identifiers:
+  - type: doi
+    value: 10.5281/zenodo.22726013
+    description: "Concept DOI (all versions)"
+  - type: doi
+    value: 10.5281/zenodo.22726014
+    description: "Version 0.2.0"
 repository-code: "https://github.com/cardinalgrid/grid-data-sentinel"
 url: "https://cardinalgrid.com/sentinel"
 authors:

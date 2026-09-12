@@ -1,5 +1,5 @@
 {
-  "title": "Grid Data Sentinel: anomaly detection and repair for load telemetry with recursive TEDA and sparse autoencoders",
+  "title": "Grid Data Sentinel: anomaly detection and repair for load telemetry with recursive TEDA, sparse autoencoders and calendar-aware profiles",
   "upload_type": "software",
   "license": "Apache-2.0",
   "access_right": "open",

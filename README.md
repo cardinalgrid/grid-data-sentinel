@@ -163,7 +163,7 @@ ruff check src tests scripts && pytest -q
 
 ## Citing
 
-See `CITATION.cff`. Each release is archived on Zenodo with a DOI.
+Guerra Filho, R. W. C. (2026). *Grid Data Sentinel: anomaly detection and repair for load telemetry with recursive TEDA, sparse autoencoders and calendar-aware profiles* (v0.2.0). Zenodo. https://doi.org/10.5281/zenodo.22726014 (concept DOI for all versions: 10.5281/zenodo.22726013). See `CITATION.cff`.
 
 ## License
 
