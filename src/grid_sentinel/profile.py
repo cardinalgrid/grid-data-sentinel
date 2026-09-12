@@ -83,7 +83,7 @@ def expected_profile(
             continue
         m = (ords >= ords[i] - span) & (ords < ords[i])
         for y in range(1, analog_years + 1):
-            c = ords[i] - int(round(365.25 * y))
+            c = ords[i] - round(365.25 * y)
             m |= (ords >= c - half_days) & (ords <= c + half_days)
         m &= (group == group[i]) & valid_day
         if m.sum() >= min_ref:

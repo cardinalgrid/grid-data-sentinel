@@ -83,7 +83,7 @@ def repair(
     elif method == "equivalent_days":
         values = s.to_numpy()
         filled = out.to_numpy().copy()
-        spd = int(round(24 * samples_per_hour))
+        spd = round(24 * samples_per_hour)
         lin = _linear(s, mask).to_numpy()
         for _, r in iv.iterrows():
             i0, i1 = int(r["i0"]), int(r["i1"])

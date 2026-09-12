@@ -20,10 +20,16 @@ import numpy as np
 import pandas as pd
 
 matplotlib.use("Agg")
-import matplotlib.pyplot as plt  # noqa: E402
+import matplotlib.pyplot as plt
 
-from grid_sentinel import intervals_from_mask, repair, sentinel, sentinel_v2, summarize_intervals  # noqa: E402
-from grid_sentinel.benchmark import load_series_local  # noqa: E402
+from grid_sentinel import (
+    intervals_from_mask,
+    repair,
+    sentinel,
+    sentinel_v2,
+    summarize_intervals,
+)
+from grid_sentinel.benchmark import load_series_local
 
 ROOT = Path(__file__).resolve().parents[1]
 DOCS = ROOT / "docs"
@@ -139,14 +145,18 @@ def main() -> int:
     lines = [
         "# Real anomalies in the EIA-930 demand record",
         "",
-        "Everything on this page comes from the public hourly demand that U.S. balancing authorities report to EIA, as published. "
-        "Nothing was injected. The survey counts four simple signatures in the raw series of every BA; the gallery then shows named cases "
-        "with the flags of the two composite detectors and the repaired series. The last two cases are genuine events, where the right answer is no alarm.",
+        (
+            "Everything on this page comes from the public hourly demand that U.S. balancing authorities report to EIA, as published. "
+            "Nothing was injected. The survey counts four simple signatures in the raw series of every BA; the gallery then shows named cases "
+            "with the flags of the two composite detectors and the repaired series. The last two cases are genuine events, where the right answer is no alarm."
+        ),
         "",
         "## Survey",
         "",
-        f"BAs with at least 500 MW of mean demand ({len(big)} of {len(sv)}), July 2015 to the latest file. A frozen run is three or more identical consecutive hourly values; "
-        "a jump is an hour-to-hour ratio above 2 or below 1/2 between positive readings; a unit-error hour is a reading more than 5x or less than 1/5 of the two-week rolling median.",
+        (
+            f"BAs with at least 500 MW of mean demand ({len(big)} of {len(sv)}), July 2015 to the latest file. A frozen run is three or more identical consecutive hourly values; "
+            "a jump is an hour-to-hour ratio above 2 or below 1/2 between positive readings; a unit-error hour is a reading more than 5x or less than 1/5 of the two-week rolling median."
+        ),
         "",
         "| BA | mean MW | zero hours | frozen runs | frozen hours | longest frozen run (h) | jumps | unit-error hours |",
         "|---|---|---|---|---|---|---|---|",
@@ -154,8 +164,11 @@ def main() -> int:
     for _, r in big.iterrows():
         lines.append(f"| {r['ba']} | {r['mean_mw']:,.0f} | {r['zero_hours']} | {r['frozen_runs']} | {r['frozen_hours']} | {r['longest_frozen_run_h']} | {r['hour_to_hour_jumps']} | {r['unit_error_hours']} |")
     tot = sv[["zero_hours", "frozen_hours", "hour_to_hour_jumps", "unit_error_hours"]].sum()
-    lines += ["", f"All BAs together: {tot['zero_hours']:,} zero hours, {tot['frozen_hours']:,} frozen hours, {tot['hour_to_hour_jumps']:,} jumps, {tot['unit_error_hours']:,} unit-error hours "
-              "in a record of about 6.5 million BA-hours. Every one of them reached the public dataset as reported.", "", "## Gallery", ""]
+    totals = (
+        f"All BAs together: {tot['zero_hours']:,} zero hours, {tot['frozen_hours']:,} frozen hours, {tot['hour_to_hour_jumps']:,} jumps, {tot['unit_error_hours']:,} unit-error hours "
+        "in a record of about 6.5 million BA-hours. Every one of them reached the public dataset as reported."
+    )
+    lines += ["", totals, "", "## Gallery", ""]
 
     summary_rows = []
     for ba, year, start, end, title, what in CASES:
