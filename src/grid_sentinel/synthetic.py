@@ -7,6 +7,8 @@ Five anomaly types are modelled on what is seen in operational load telemetry:
 - ``zero``   a run of 1 to 3 readings set to zero (telemetry loss reported as zero)
 - ``stuck``  a run of 3 to 12 readings frozen at the last good value (stale SCADA value)
 - ``scale``  a run of 6 to 48 readings multiplied by 10 or 0.1 (unit error)
+- ``feeder_loss`` (opt-in) a run of 6 to 72 readings multiplied by (1 - a), a in [0.05, 0.30]: a feeder or a
+  metering point drops out of the total and comes back (partial loss of load telemetry)
 
 Every injected reading is labelled 1. Readings that were already wrong in the source data are not
 labelled, so a detector that flags them is counted as a false positive: the benchmark measures
@@ -23,6 +25,7 @@ except ImportError as e:  # pragma: no cover
     raise ImportError("grid_sentinel.synthetic needs pandas: pip install grid-data-sentinel[pandas]") from e
 
 TYPES = ("spike", "dip", "zero", "stuck", "scale")
+ALL_TYPES = (*TYPES, "feeder_loss")
 
 
 def inject_anomalies(
@@ -52,6 +55,8 @@ def inject_anomalies(
             length = int(rng.integers(1, 4))
         elif t == "stuck":
             length = int(rng.integers(3, 13))
+        elif t == "feeder_loss":
+            length = int(rng.integers(6, 73))
         else:
             length = int(rng.integers(6, 49))
         start = int(rng.integers(1, len(values) - length))
@@ -66,6 +71,8 @@ def inject_anomalies(
             values[seg] = 0.0
         elif t == "stuck":
             values[seg] = clean[start - 1]
+        elif t == "feeder_loss":
+            values[seg] = clean[seg] * (1.0 - rng.uniform(0.05, 0.30))
         else:
             values[seg] = clean[seg] * (10.0 if rng.random() < 0.5 else 0.1)
         label[seg] = 1

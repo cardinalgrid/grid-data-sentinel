@@ -1,9 +1,11 @@
-"""Benchmark of all detectors on EIA-930 demand series with injected, labelled anomalies.
+"""Benchmark of the detectors on EIA-930 demand series with injected, labelled anomalies (pandas extra).
 
-Input is the tidy parquet produced by ``ba-forecast-scorecard`` (one file per half-year with
-columns ``ba``, ``utc_end``, ``demand``). For each balancing authority and year the hourly demand
-series is corrupted with ``inject_anomalies`` and every detector is run on the corrupted series.
-Metrics are computed against the injected labels with a tolerance of one reading.
+Input is the tidy parquet produced by ``ba-forecast-scorecard`` (one file per half-year). For each
+balancing authority and year the hourly demand series is corrupted with ``inject_anomalies`` and every
+detector is run on the corrupted series; metrics are computed against the injected labels with a
+tolerance of one reading. Detectors are the ``Detector`` classes of the package, run through an adapter
+that regularises the pandas series onto the hourly grid the core expects; the v0.3 functions are kept as
+``legacy_detectors()`` for comparison.
 """
 
 from __future__ import annotations
@@ -22,46 +24,92 @@ except ImportError as e:  # pragma: no cover
     raise ImportError("grid_sentinel.benchmark needs pandas: pip install grid-data-sentinel[pandas]") from e
 
 from grid_sentinel import __version__
-from grid_sentinel.autoencoder import SparseAutoencoder
-from grid_sentinel.baselines import hampel, iqr, modified_zscore, relative_deviation, rolling_zscore
+from grid_sentinel.base import Detector
 from grid_sentinel.data import load_series_local
+from grid_sentinel.detectors import (
+    IQR,
+    TEDA,
+    Hampel,
+    ModifiedZScore,
+    ProfileResidual,
+    RelativeDeviation,
+    RollingZScore,
+    Sentinel,
+    SparseAutoencoder,
+    StuckValues,
+)
 from grid_sentinel.metrics import score_labels
-from grid_sentinel.profile import profile_residual
-from grid_sentinel.rules import sentinel, sentinel_v2, sentinel_v3, stuck_values
-from grid_sentinel.synthetic import inject_anomalies
-from grid_sentinel.teda import RecursiveTEDA
+from grid_sentinel.pandas import from_series, regularize
+from grid_sentinel.synthetic import TYPES, inject_anomalies
+from grid_sentinel.types import Context
 
 DEFAULT_BAS = ("PJM", "MISO", "ERCO", "CISO", "SWPP", "NYIS", "ISNE", "TVA", "DUK", "BPAT")
 
+DetectorFn = Callable[[pd.Series, dict], pd.DataFrame]
 
-def default_detectors() -> dict[str, Callable[[pd.Series, dict], pd.DataFrame]]:
+
+def context_from_dict(ctx: dict, key: str = "neighbors") -> Context:
+    """A ``Context`` from the dict ``make_context`` returns (pandas Series inside)."""
+    temp = ctx.get("temperature_f")
+    nb = ctx.get(key) or {}
+    return Context(
+        temperature_f=from_series(regularize(temp)) if temp is not None else None,
+        neighbors={k: from_series(regularize(v)) for k, v in nb.items()} or None,
+    )
+
+
+def on_contract(factory: Callable[[], Detector], neighbors_key: str = "neighbors") -> DetectorFn:
+    """Wrap a Detector factory as a ``(series, ctx) -> DataFrame`` callable on the original index."""
+
+    def fn(s: pd.Series, ctx: dict) -> pd.DataFrame:
+        det = factory()
+        reg = regularize(s)
+        v, t = from_series(reg)
+        context = context_from_dict(ctx, neighbors_key) if ctx else None
+        res = det.fit_predict(v, t, context) if isinstance(det, SparseAutoencoder) else det.predict(v, t, context)
+        pos = reg.index.get_indexer(pd.DatetimeIndex(s.index))
+        return pd.DataFrame(
+            {"value": s.to_numpy(dtype=float), "score": res.score[pos], "threshold": res.threshold[pos],
+             "is_anomaly": res.is_anomaly[pos], "reason": res.reason[pos]},
+            index=s.index,
+        )
+
+    return fn
+
+
+def default_detectors() -> dict[str, DetectorFn]:
     """Every detector takes the series and a context dict (``temperature_f``, ``neighbors``,
-    ``neighbors_distance``); detectors that need no context ignore it."""
+    ``neighbors_distance``); detectors that need no context ignore it. Names are those of the v0.3 tables."""
     return {
-        "sentinel_v3": lambda s, c: sentinel_v3(s, temperature_f=c.get("temperature_f"), neighbors=c.get("neighbors")),
-        "sentinel_v3_distance_neighbors": lambda s, c: sentinel_v3(
-            s, temperature_f=c.get("temperature_f"), neighbors=c.get("neighbors_distance")
-        ),
-        "sentinel_v3_profile_neighbors": lambda s, c: sentinel_v3(
-            s, neighbors=c.get("neighbors"), checks=("profile", "neighbors")
-        ),
-        "sentinel_v3_profile_weather": lambda s, c: sentinel_v3(
-            s, temperature_f=c.get("temperature_f"), checks=("profile", "weather")
-        ),
-        "sentinel_v3_regime_only": lambda s, c: sentinel_v3(s, temperature_f=c.get("temperature_f"), extremes="off"),
-        "sentinel_v2": lambda s, c: sentinel_v2(s),
-        "profile_residual": lambda s, c: profile_residual(s, regime=None),
-        "modified_zscore": lambda s, c: modified_zscore(s),
-        "relative_deviation": lambda s, c: relative_deviation(s),
-        "sentinel": lambda s, c: sentinel(s),
-        "teda_level": lambda s, c: RecursiveTEDA(m=4.0, diff=False).detect(s),
-        "teda_level_robust": lambda s, c: RecursiveTEDA(m=4.0, diff=False, robust=True).detect(s),
-        "teda_diff": lambda s, c: RecursiveTEDA(m=3.0, diff=True).detect(s),
-        "autoencoder": lambda s, c: SparseAutoencoder(window=4, encoding_dim=2, epochs=20, factor=20.0).detect(s),
-        "stuck_rule": lambda s, c: stuck_values(s, min_run=3),
-        "rolling_zscore": lambda s, c: rolling_zscore(s, window=168, k=3.0),
-        "hampel": lambda s, c: hampel(s, window=24, k=3.0),
-        "iqr": lambda s, c: iqr(s, k=1.5),
+        "sentinel_v3": on_contract(Sentinel),
+        "sentinel_v3_distance_neighbors": on_contract(Sentinel, neighbors_key="neighbors_distance"),
+        "sentinel_v3_profile_neighbors": on_contract(lambda: Sentinel(cross_checks=("profile", "neighbors"))),
+        "sentinel_v3_profile_weather": on_contract(lambda: Sentinel(cross_checks=("profile", "weather"))),
+        "sentinel_v3_regime_only": on_contract(lambda: Sentinel(extremes="off")),
+        "sentinel_v3_forgetting": on_contract(lambda: Sentinel(half_life_hours=336)),
+        "sentinel_v2": on_contract(lambda: Sentinel(cross_checks=(), regime="load", extremes="off")),
+        "profile_residual": on_contract(lambda: ProfileResidual(k=4.0, regime=None)),
+        "modified_zscore": on_contract(ModifiedZScore),
+        "relative_deviation": on_contract(RelativeDeviation),
+        "teda_level": on_contract(lambda: TEDA(m=4.0)),
+        "teda_level_robust": on_contract(lambda: TEDA(m=4.0, robust=True)),
+        "teda_diff": on_contract(lambda: TEDA(m=3.0, diff=True)),
+        "autoencoder": on_contract(lambda: SparseAutoencoder(window=4, encoding_dim=2, epochs=20, factor=20.0)),
+        "stuck_rule": on_contract(lambda: StuckValues(min_run=3)),
+        "rolling_zscore": on_contract(lambda: RollingZScore(window=168, k=3.0)),
+        "hampel": on_contract(lambda: Hampel(window=24, k=3.0)),
+        "iqr": on_contract(lambda: IQR(k=1.5)),
+    }
+
+
+def legacy_detectors() -> dict[str, DetectorFn]:
+    """The v0.3 functions, for side-by-side comparison (same names, suffix ``_legacy``)."""
+    from grid_sentinel import rules
+
+    return {
+        "sentinel_v3_legacy": lambda s, c: rules.sentinel_v3(s, temperature_f=c.get("temperature_f"), neighbors=c.get("neighbors")),
+        "sentinel_v2_legacy": lambda s, c: rules.sentinel_v2(s),
+        "sentinel_v1_legacy": lambda s, c: rules.sentinel(s),
     }
 
 
@@ -144,9 +192,10 @@ def run(
     years: tuple[int, ...] = (2023, 2024),
     rate: float = 0.005,
     seed: int = 0,
-    detectors: dict[str, Callable[[pd.Series, dict], pd.DataFrame]] | None = None,
+    detectors: dict[str, DetectorFn] | None = None,
     tolerance: int = 1,
     context: Callable[[str, int], dict] | None = None,
+    types: tuple[str, ...] = TYPES,
 ) -> pd.DataFrame:
     detectors = detectors or default_detectors()
     rows = []
@@ -156,7 +205,7 @@ def run(
             s = s[s > 0]
             if len(s) < 24 * 30:
                 continue
-            inj = inject_anomalies(s, rate=rate, seed=seed + year)
+            inj = inject_anomalies(s, rate=rate, types=types, seed=seed + year)
             raw_bad = raw_fault_mask(inj["clean"].to_numpy())
             ctx = context(ba, year) if context else {}
             for name, fn in detectors.items():
@@ -170,7 +219,7 @@ def run(
                 m["f1_adj"] = m_adj["f1"]
                 m["raw_fault_readings"] = int(raw_bad.sum())
                 by_kind = {}
-                for kind in ("spike", "dip", "zero", "stuck", "scale"):
+                for kind in types:
                     sel = (inj["kind"] == kind).to_numpy()
                     if sel.any():
                         hit = np.asarray(res["is_anomaly"], dtype=bool)
@@ -190,7 +239,8 @@ def summarise(results: pd.DataFrame) -> pd.DataFrame:
     return agg
 
 
-def write_results(results: pd.DataFrame, out_dir: Path, tidy_dir: Path, bas, years, rate, seed) -> None:
+def write_results(results: pd.DataFrame, out_dir: Path, tidy_dir: Path, bas, years, rate, seed,
+                  types: tuple[str, ...] = TYPES) -> None:
     out_dir.mkdir(parents=True, exist_ok=True)
     results.to_csv(out_dir / "benchmark_by_series.csv", index=False)
     summary = summarise(results)
@@ -203,6 +253,7 @@ def write_results(results: pd.DataFrame, out_dir: Path, tidy_dir: Path, bas, yea
         "injection_rate": rate,
         "seed": seed,
         "tolerance": 1,
+        "types": list(types),
         "n_series": int(results.groupby(["ba", "year"]).ngroups),
         "detectors": {k: {c: float(v) for c, v in row.items()} for k, row in summary.iterrows()},
     }

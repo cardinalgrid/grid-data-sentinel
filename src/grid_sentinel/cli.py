@@ -14,9 +14,10 @@ except ImportError as e:  # pragma: no cover
 from grid_sentinel import __version__
 from grid_sentinel.autoencoder import SparseAutoencoder
 from grid_sentinel.baselines import hampel, iqr, rolling_zscore
-from grid_sentinel.benchmark import DEFAULT_BAS, make_context, run, summarise, write_results
+from grid_sentinel.benchmark import DEFAULT_BAS, legacy_detectors, make_context, run, summarise, write_results
 from grid_sentinel.repair import repair
 from grid_sentinel.rules import sentinel, stuck_values
+from grid_sentinel.synthetic import ALL_TYPES, TYPES
 from grid_sentinel.teda import RecursiveTEDA
 
 METHODS = ("sentinel", "teda", "teda-level", "autoencoder", "stuck", "zscore", "hampel", "iqr")
@@ -58,6 +59,12 @@ def _detect(args: argparse.Namespace) -> int:
 
 def _benchmark(args: argparse.Namespace) -> int:
     context = make_context(Path(args.tidy), Path(args.isd), Path(args.neighbors)) if args.isd else None
+    types = ALL_TYPES if args.feeder_loss else TYPES
+    detectors = None
+    if args.with_legacy:
+        from grid_sentinel.benchmark import default_detectors
+
+        detectors = {**default_detectors(), **legacy_detectors()}
     results = run(
         Path(args.tidy),
         bas=tuple(args.bas),
@@ -65,11 +72,13 @@ def _benchmark(args: argparse.Namespace) -> int:
         rate=args.rate,
         seed=args.seed,
         context=context,
+        types=types,
+        detectors=detectors,
     )
     if results.empty:
         print("no series found; check --tidy, --bas and --years", file=sys.stderr)
         return 1
-    write_results(results, Path(args.out), Path(args.tidy), args.bas, args.years, args.rate, args.seed)
+    write_results(results, Path(args.out), Path(args.tidy), args.bas, args.years, args.rate, args.seed, types=types)
     print(summarise(results).round(3).to_string())
     return 0
 
@@ -96,6 +105,8 @@ def main(argv: list[str] | None = None) -> int:
     b.add_argument("--seed", type=int, default=0)
     b.add_argument("--isd", default=None, help="directory with cached NOAA ISD-Lite files; enables the v0.3 context")
     b.add_argument("--neighbors", default="docs/neighbors.csv", help="neighbour table (see scripts/make_neighbors.py)")
+    b.add_argument("--feeder-loss", action="store_true", help="add the partial feeder-loss fault to the injection")
+    b.add_argument("--with-legacy", action="store_true", help="also run the v0.3 functions, for comparison")
     b.add_argument("--out", default="results")
     b.set_defaults(func=_benchmark)
 
