@@ -22,6 +22,8 @@ Changed
 
 Regression on the 20 BA-year benchmark (0.5% injected faults, adjusted metrics), classes against the v0.3 functions run side by side: `Sentinel()` F1 0.974 against 0.974 for `legacy.sentinel_v3`, with identical recall by fault type (spike 0.95, dip 0.71, zero 1.00, stuck 1.00, scale 0.99); the v0.2 configuration 0.972 against 0.973 (the causal frozen-value rule and the missing look-ahead cost 0.001). `Sentinel(half_life_hours=336)` (forgetting) reaches recall 0.99 on dips at the cost of adjusted precision (0.94 against 0.98) and F1 0.947; it stays an option. `StuckValues` alone: F1 0.097 against 0.114 for the v0.3 rule, the price of deciding a frozen run without seeing its end. Cost: `Sentinel.predict` is a Python replay, 3.4 s per BA-year against 0.29 s for the vectorised v0.3 function it reproduces.
 
+On the four winter events (`docs/storms.md`) the streaming composite reproduces the v0.3 tables: peak kept and recall in the window identical for `Sentinel()`, the v0.2 configuration and every reference detector; the largest difference in any variant is one BA out of 43 (the profile-and-neighbours variant keeps one more peak in Elliott and in Gerri and Heather, the autoencoder one fewer in Gerri and Heather).
+
 With the opt-in `feeder_loss` fault added to the injection (`results/feeder_loss/`), every detector misses it: recall 0.03 for the composites and at most 0.04 for anything else. A partial loss of 5% to 30% of the load for up to three days looks like a plausible day to every method here; this is the known weakness left for 1.0, now measured.
 
 ## 0.3.0 (2026-09-17)
