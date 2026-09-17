@@ -1,5 +1,27 @@
 # Changelog
 
+## 0.4.0 (2026-09-17)
+
+The interface release: the methods do not change, the way of using them does.
+
+Added
+- One estimator contract for every detector (`grid_sentinel.base.Detector`): `fit`, `predict`, `score`, `fit_predict` in batch; `update` one reading at a time for detectors that declare `supports_streaming`; `reset`; `get_state` / `set_state` (plain types and numpy arrays, serialisable with `state_to_json` / `state_from_json`); `get_params` / `set_params` and a `__repr__` in the scikit-learn convention, without depending on scikit-learn.
+- Classes: `TEDA` (with optional exponential forgetting, `half_life_hours`), `StuckValues`, `ProfileResidual` (the calendar-aware profile computed one day at a time), `SparseAutoencoder`, `ModifiedZScore` (streams), `RollingZScore`, `Hampel`, `IQR`, `RelativeDeviation`, and `Sentinel`, the composite as one streaming detector with the cross-checks (`detectors.crosscheck.NeighborCheck`, `WeatherCheck`, `preserve_one`) computed reading by reading. `Sentinel(cross_checks=(), regime="load", extremes="off")` is the v0.2 composite; the defaults are v0.3.
+- Standard inputs and outputs: `as_series` validates readings and a regular hourly grid of local timestamps; `Context` carries temperature, neighbours and regime series; `DetectionResult` and `Decision` carry fixed fields and fixed reason codes (`teda_level`, `teda_diff`, `stuck`, `non_positive`, `gross_ratio`, `profile`, `baseline`, `dropped`, `extreme_kept`), with `intervals()`, `summary()`, `explain()` and `to_pandas()`.
+- `Repairer` with an `Audit` (index, timestamp, original, repaired, method, reason); `intervals_from_mask` and `summarize_intervals` in numpy.
+- Core without pandas: `numpy` is the only dependency. `pandas`, `pyarrow` and `requests` are the `[pandas]` extra, used by the adapter (`grid_sentinel.pandas`: `from_series`, `regularize`, `context_from`, `predict_series`), the public-data loaders, the benchmark, the scripts and `grid_sentinel.legacy`. A test imports the core with pandas blocked.
+- Batch equals stream: for every streaming detector `predict` is the replay of `update`, and the tests assert equal flags and scores; a state saved mid-series and restored continues with the same decisions.
+- Injection: opt-in `feeder_loss` fault (a run of 6 to 72 readings at 70% to 95% of the true load). Benchmark: `--feeder-loss`, `--with-legacy` (the v0.3 functions side by side), variant `sentinel_v3_forgetting` (half-life 14 days).
+- `docs/api.md`, `docs/migration.md`.
+
+Changed
+- The v0.3 functions (`sentinel`, `sentinel_v2`, `sentinel_v3`, `stuck_values`, `profile_residual`, the baselines, `repair`, `RecursiveTEDA`, ...) live in `grid_sentinel.legacy` with a `DeprecationWarning`, unchanged in behaviour, and are still reachable as `grid_sentinel.<name>`; removed in 1.0.
+- `StuckValues` is causal: a run is flagged from its `min_run`-th identical reading on; a missing reading breaks the run.
+- `Sentinel` looks at the reading and the previous one when confirming a base alarm against the profile (v0.3 also looked at the next one); missing readings are unflagged; the weather cross-check uses yesterday's mean temperature for the regime (v0.3 used the same day's). On PJM 2024 the causal composite flags nothing that v0.3 did not, and v0.3 flags at most 0.5% of readings more, all explained by the two rules above.
+- `SparseAutoencoder.predict` requires `fit`; `fit_predict` does both; `causal=True` scores only the window ending at each reading, which is what `update` does.
+
+<<REGRESSION>>
+
 ## 0.3.0 (2026-09-17)
 
 Added

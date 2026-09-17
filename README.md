@@ -4,7 +4,7 @@
 
 The FERC and NERC reviews of recent winter storms record the largest day-ahead load under-forecast by a balancing authority at 14% during Winter Storms Gerri and Heather (January 2024), with errors peaking early in the storms as the weather worsened ([FERC/NERC 2025](https://www.ferc.gov/news-events/news/ferc-nerc-issue-report-system-performance-during-january-2025-arctic-weather)). Those first cold hours are exactly the readings a statistical filter is most likely to mistake for bad data. NERC lists data validation, anomaly detection and provenance as preconditions for trustworthy operator-facing AI ([NERC 2024](https://www.nerc.com/pa/rrm/bpsa/Documents/Whitepaper-AI%20and%20ML%20in%20Real-Time%20System%20Operations.pdf)). This package is a small, dependency-light toolkit for that problem: detect corrupted readings in a load series, repair them with an audit trail, and measure how well each method does on public EIA-930 data, both with known injected faults and on the faults the public record actually contains.
 
-> Status: **v0.3.0** (batch mode). Genuine extremes are now cross-checked against the expected profile, the BA's interchange neighbours and the local temperature before they can be written off as faults; the profile regime comes from temperature. A streaming composite is on the roadmap below.
+> Status: **v0.4.0**. One estimator contract for every detector (`fit` / `predict` / `score` in batch, `update` one reading at a time), a core that depends on numpy only, and the whole composite, cross-checks included, in streaming with a serialisable state. The 0.3 functions remain in `grid_sentinel.legacy` for one minor version. See `docs/api.md` and `docs/migration.md`.
 
 ## Methods
 
@@ -12,15 +12,15 @@ Detection and repair are separate steps. Every detector returns the series uncha
 
 | Detector | What it does | Origin |
 |---|---|---|
-| `RecursiveTEDA` | Streaming detector based on typicality and eccentricity data analytics: keeps a recursive mean and variance and flags a reading when its normalised eccentricity exceeds (m²+1)/2k. No window, no training, no distributional assumption. Runs on levels or on first differences; optional winsorised update (`robust=True`) so that a run of bad readings does not inflate the variance. | Angelov (2014); the maintainer's M.Sc. work on outlier detection in demand curves |
+| `TEDA` | Streaming detector based on typicality and eccentricity data analytics: keeps a recursive mean and variance and flags a reading when its normalised eccentricity exceeds (m²+1)/2k. No window, no training, no distributional assumption. Runs on levels or on first differences; optional winsorised update (`robust=True`) so that a run of bad readings does not inflate the variance. | Angelov (2014); the maintainer's M.Sc. work on outlier detection in demand curves |
 | `SparseAutoencoder` | Window autoencoder (default 4 readings, code of size 2, L1 activity penalty) trained to reconstruct the series; the reconstruction error is the anomaly score. Implemented in NumPy, so there is no deep-learning dependency. | Guerra Filho et al., [*Energies* 2024, 17(24), 6403](https://doi.org/10.3390/en17246403) |
-| `stuck_values` | Rule: a run of identical consecutive readings is a frozen telemetry value, not a measurement. | Operational practice |
-| `profile_residual` | Calendar-aware expectation: day types (workday, Saturday, Sunday, with the special days that behave like each) and an optional regime label; references are the last two weeks plus the same three weeks of the previous year; the residual is scaled by its recent MAD. The design follows [Cardinal Grid Note 2](https://github.com/cardinalgrid/notes), which tested the alternatives on 44 balancing authorities. | This package |
-| `sentinel` | Composite v0.1: TEDA on levels ∪ TEDA on differences ∪ stuck-value rule. | This package |
-| `sentinel_v3` | Composite v0.3: v0.2 with the profile regime read from the daily mean temperature, plus a rule for readings flagged *above* the expected value: the flag stands only if at least two of the available cross-checks fail to confirm the reading as genuine. Cross-checks: the profile (ratio to the expectation within 35%), the neighbours (the median normalised load of the BA's interchange partners is above its own recent 95th percentile at that hour) and the weather (the hour's temperature is in the BA's own seasonal tail for the heating or cooling regime). With two checks available the reading must fail both; with fewer, the v0.2 decision stands. Readings below the expectation, frozen runs and non-positive values are unchanged. | This package |
+| `StuckValues` | Rule (causal since 0.4: a reading is flagged from the third identical one on): a run of identical consecutive readings is a frozen telemetry value, not a measurement. | Operational practice |
+| `ProfileResidual` | Calendar-aware expectation, computed one day at a time: day types (workday, Saturday, Sunday, with the special days that behave like each) and an optional regime label; references are the last two weeks plus the same three weeks of the previous year; the residual is scaled by its recent MAD. The design follows [Cardinal Grid Note 2](https://github.com/cardinalgrid/notes), which tested the alternatives on 44 balancing authorities. | This package |
+| `Sentinel(cross_checks=(), regime="load", extremes="off")` | Composite v0.2: the base detectors, each flag kept only if the reading (or the one before it) is also implausible against the profile; frozen runs, non-positive readings and gross ratios are faults regardless. | This package |
+| `Sentinel()` | Composite v0.3, now streaming: v0.2 with the profile regime read from the daily mean temperature, plus a rule for readings flagged *above* the expected value: the flag stands only if at least two of the available cross-checks fail to confirm the reading as genuine. Cross-checks: the profile (ratio to the expectation within 35%), the neighbours (the median normalised load of the BA's interchange partners is above its own recent 95th percentile at that hour) and the weather (the hour's temperature is in the BA's own seasonal tail for the heating or cooling regime). With two checks available the reading must fail both; with fewer, the v0.2 decision stands. Readings below the expectation, frozen runs and non-positive values are unchanged. | This package |
 | `neighbors`, `weather`, `stations` | Neighbour table from the public EIA-930 interchange record (`docs/neighbors.csv`, one year of hourly interchange, median absolute MW as weight, station distance as fallback), hourly ISD-Lite temperature per BA on the load's local index, and the BA-to-airport map. | EIA-930, NOAA ISD-Lite |
-| `sentinel_v2` | Composite v0.2: the v0.1 detectors, each flag kept only if the reading (or a neighbour) is also implausible against the profile; frozen runs, non-positive readings and gross ratios to the expected value (outside 1/3 to 3×) are kept without the check. | This package |
-| `rolling_zscore`, `hampel`, `iqr`, `modified_zscore`, `relative_deviation` | Reference detectors, including the two rules most common in utility practice: the Iglewicz-Hoaglin modified z-score and a 15% deviation from a centred mean. | Standard |
+| `legacy.sentinel_v2` | The v0.2 function, unchanged (deprecated): the v0.1 detectors, each flag kept only if the reading (or a neighbour) is also implausible against the profile; frozen runs, non-positive readings and gross ratios to the expected value (outside 1/3 to 3×) are kept without the check. | This package |
+| `RollingZScore`, `Hampel`, `IQR`, `ModifiedZScore`, `RelativeDeviation` | Reference detectors, including the two rules most common in utility practice: the Iglewicz-Hoaglin modified z-score and a 15% deviation from a centred mean. | Standard |
 
 Plus `inject_anomalies` (labelled spikes, dips, zeros, stuck runs and unit errors for benchmarking), `intervals_from_mask` (flags grouped into intervals with a duration class: up to 1 h, 1 day, 1 week, 1 month, more), `repair` (a straight line for gaps up to an hour; for longer gaps the mean of the same interval one or more weeks before and after, shifted to meet the neighbouring good readings; gaps longer than 48 readings are left open rather than invented; every change logged with its reason and method), `day_types` (U.S. calendar with special days) and `score_labels` (precision, recall, F1, MCC, with an optional ±n tolerance).
 
@@ -118,36 +118,36 @@ For each of Winter Storm Uri (2021), Winter Storm Elliott (2022), Winter Storms 
 ## Install and use
 
 ```bash
-pip install git+https://github.com/cardinalgrid/grid-data-sentinel
+pip install git+https://github.com/cardinalgrid/grid-data-sentinel            # core: numpy only
+pip install "grid-data-sentinel[pandas] @ git+https://github.com/cardinalgrid/grid-data-sentinel"   # + pandas adapter, public data, benchmark
 ```
+
+Batch, on numpy arrays (hourly readings and local-time timestamps on a regular grid):
 
 ```python
-import pandas as pd
-from grid_sentinel import sentinel_v2, repair, intervals_from_mask, summarize_intervals
+import numpy as np
+from grid_sentinel import Sentinel, Repairer, Context
 
-demand = pd.read_csv("my_series.csv", index_col=0, parse_dates=True)["demand"]   # hourly, local time
-flags = sentinel_v2(demand)                                   # value, score, expected, is_anomaly, confirmed_by
-fixed, audit = repair(demand, flags["is_anomaly"], method="equivalent_days", reason="sentinel v0.2")
-print(summarize_intervals(intervals_from_mask(flags["is_anomaly"])))
+det = Sentinel()                                             # the v0.3 composite; Sentinel(cross_checks=(), regime="load", extremes="off") is v0.2
+res = det.predict(values, timestamps, Context(temperature_f=(temp_f, temp_t), neighbors={"MISO": (miso, miso_t)}))
+res.is_anomaly, res.reason, res.expected, res.checks       # reason: teda_level, stuck, gross_ratio, extreme_kept, ...
+res.summary(); res.explain(i); res.intervals()
+fixed, audit = Repairer(method="equivalent_days").transform(values, timestamps, res.is_anomaly)   # detection never modifies the series
 ```
 
-With a temperature regime (three classes from the daily mean temperature, °F), which Note 2 found to be worth more than any calendar distinction:
+The same detector, one reading at a time, with a state that can be saved and restored:
 
 ```python
-from grid_sentinel import regime_from_temperature
-regime = regime_from_temperature(daily_mean_temp_f)           # a Series indexed by day
-flags = sentinel_v2(demand, regime=regime)
+from grid_sentinel import state_to_json, state_from_json
+
+det = Sentinel().fit(history_values, history_timestamps, history_context)   # warm start from the history
+for t, x, temp, nb in live_readings:                                          # nb = {"MISO": 71234.0, ...}
+    d = det.update(t, x, temperature_f=temp, neighbors=nb)                  # Decision: is_anomaly, reason, expected, checks
+saved = state_to_json(det.get_state())
+det2 = Sentinel().set_state(state_from_json(saved))                          # continues exactly where det stopped
 ```
 
-With the v0.3 cross-checks, which need the BA's hourly temperature (°F, same index as the load) and the local-hour load of its neighbours (`docs/neighbors.csv` lists them for every BA in the public record):
-
-```python
-from grid_sentinel import sentinel_v3
-flags = sentinel_v3(demand, temperature_f=temp_f, neighbors={"MISO": miso_demand, "NYIS": nyis_demand})
-kept = flags[flags["confirmed_by"] == "extreme kept"]         # readings the v0.2 rules would have written off
-```
-
-The benchmark and the storm evaluation build that context from the public files (`--isd` points at a folder of cached NOAA ISD-Lite files; `scripts/make_neighbors.py` rebuilds the neighbour table from the EIA-930 interchange record).
+Every detector follows the same contract (`TEDA`, `StuckValues`, `ProfileResidual`, `SparseAutoencoder`, the baselines): `fit`, `predict`, `score`, `update`, `get_state`, `set_state`, `get_params`. For a streaming detector, `predict` is the sequence of `update` calls replayed, so batch and stream agree exactly. From pandas: `from grid_sentinel.pandas import predict_series, regularize, context_from`.
 
 Command line:
 
@@ -177,7 +177,8 @@ for x in readings:
 - `RecursiveTEDA` keeps all history. On a decade of data the running variance is dominated by the seasonal cycle. The winsorised update protects it from bad runs, not from drift; a forgetting factor is planned.
 - Without a temperature series the profile's regime is read from yesterday's load (morning peak or not). With one, the regime is the daily mean temperature (heating below 59 °F, cooling above 72 °F); one airport represents each BA.
 - Neighbours come from one year of aggregate interchange (2024) and are treated as fixed; BAs whose partners are outside the EIA-930 record (Canada, Mexico) fall back to station distance and may end with a single neighbour, in which case the neighbour check is unavailable and the rule requires both remaining checks to fail.
-- The composites are batch: `sentinel_v2` and `sentinel_v3` need the whole series to build profiles. `RecursiveTEDA` is the only streaming component so far.
+- The composite decides each reading when it arrives. Compared with the 0.3 batch functions this costs a reading per frozen run (flagged from the third identical value) and the look-ahead of the profile confirmation; `docs/migration.md` lists every such difference and its measured size.
+- `predict` is a replay of `update` in Python: about 4 s per BA-year for `Sentinel`, against 0.3 s for the vectorised 0.3 function it reproduces.
 - One series, one BA, one detector at a time. No claims are made about any operator's internal data quality; the public record is what it is.
 
 ## Roadmap
@@ -186,8 +187,9 @@ for x in readings:
 |---|---|---|
 | v0.1 | September 2026 | TEDA + autoencoder + rules, batch mode, benchmark on EIA-930 |
 | v0.2 | September 2026 | Calendar-aware profile and confirmation, interval table, equivalent-day repair, practice baselines, survey and gallery of real anomalies |
-| v0.3 | September 2026 | Temperature regime, neighbour and weather cross-checks, preservation of genuine extremes, evaluation on four winter events (this release) |
-| v0.4 | December 2026 | Streaming composite with forgetting, partial-feeder-loss fault in the injection, better recall on dips |
+| v0.3 | September 2026 | Temperature regime, neighbour and weather cross-checks, preservation of genuine extremes, evaluation on four winter events |
+| v0.4 | September 2026 | Estimator contract for every detector, numpy-only core, streaming composite with serialisable state, optional forgetting, feeder-loss fault (this release) |
+| v1.0 | December 2026 | Removal of the legacy functions, PyPI, documentation and examples on public data, better recall on dips and feeder loss |
 | v1.0 | December 2026 | Audit trail format, documentation, examples on public data, PyPI |
 
 ## Development
