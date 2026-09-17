@@ -5,7 +5,7 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
-from grid_sentinel.profile import profile_residual, regime_from_peak_hour
+from grid_sentinel.profile import profile_residual, regime_from_peak_hour, regime_from_temperature
 from grid_sentinel.teda import RecursiveTEDA
 
 
@@ -122,4 +122,61 @@ def sentinel_v2(
     out["confirmed_by"] = np.where(~flags, np.where(base["is_anomaly"].to_numpy(), "dropped", ""),
                                    np.where(nonsense, "non-positive", np.where(stuck, "stuck", np.where(grossly, "gross ratio",
                                    np.where(no_expectation, "no expectation", "profile")))))
+    return out
+
+
+def sentinel_v3(
+    series: pd.Series,
+    temperature_f: pd.Series | None = None,
+    neighbors: dict[str, pd.Series] | None = None,
+    checks: tuple[str, ...] = ("profile", "neighbors", "weather"),
+    extremes: str = "preserve",
+    profile_band: float = 0.5,
+    **v2_kwargs,
+) -> pd.DataFrame:
+    """Composite v0.3: v0.2 with a temperature-derived regime and preservation of genuine extremes.
+
+    A reading flagged by v0.2 *above* its expected value is kept as a fault only if at least two of the
+    available cross-checks fail to confirm it as genuine: the profile (the reading is within
+    ``profile_band`` of the expected value, a wider band than the one v0.2 uses to raise the alarm), the
+    neighbours (the BA's interchange partners rose at the same hour, each against its own recent normal)
+    and the weather (the hour's temperature is in the BA's own seasonal tail for the heating or cooling
+    regime). With two checks available the reading must fail both; with one, or none, the v0.2 decision
+    stands. Readings below the expected value, frozen runs and non-positive readings follow the v0.2
+    rules unchanged. ``extremes="off"`` returns the v0.2 result with the check columns attached.
+    The profile regime comes from the daily mean temperature when ``temperature_f`` is given.
+    """
+    from grid_sentinel.crosscheck import confirm_neighbors, confirm_weather, preserve_extremes
+    from grid_sentinel.weather import daily_mean_f
+
+    regime = v2_kwargs.pop("regime", None)
+    if regime is None and temperature_f is not None:
+        regime = regime_from_temperature(daily_mean_f(temperature_f.reindex(series.index))).shift(1)
+    out = sentinel_v2(series, regime=regime, **v2_kwargs)
+    x = series.astype(float).to_numpy()
+    expected = out["expected"].to_numpy()
+    above = np.isfinite(expected) & (x > expected)
+    with np.errstate(invalid="ignore", divide="ignore"):
+        ratio = x / expected
+    check_profile = pd.Series(
+        np.where(np.isfinite(ratio), (np.abs(np.nan_to_num(ratio, nan=np.inf) - 1.0) <= profile_band).astype(float), np.nan),
+        index=series.index,
+    )
+    idx = pd.DatetimeIndex(series.index)
+    check_neighbors = confirm_neighbors(neighbors, idx) if neighbors else pd.Series(np.nan, index=series.index)
+    check_weather = (confirm_weather(temperature_f.reindex(series.index)) if temperature_f is not None
+                     else pd.Series(np.nan, index=series.index))
+    out["above_expected"] = above
+    out["check_profile"] = check_profile.to_numpy()
+    out["check_neighbors"] = check_neighbors.to_numpy()
+    out["check_weather"] = check_weather.to_numpy()
+    if extremes == "off":
+        return out
+    named = (("profile", check_profile), ("neighbors", check_neighbors), ("weather", check_weather))
+    used = [c for name, c in named if name in checks]
+    before = out["is_anomaly"].to_numpy().copy()
+    hard = out["confirmed_by"].isin(["stuck", "non-positive"]).to_numpy()
+    flags = preserve_extremes(before, above & ~hard, used)
+    out["is_anomaly"] = flags
+    out.loc[before & ~flags, "confirmed_by"] = "extreme kept"
     return out

@@ -200,9 +200,9 @@ def test_preserve_extremes_two_of_three_truth_table():
     weather = np.array([1, 1, 0, 0, np.nan, 0, np.nan, 0], dtype=float)
     keep = preserve_extremes(flagged, above, [profile, neighbours, weather])
     # 0 all confirm -> drop; 1 one fails -> drop; 2 all fail -> keep; 3 two fail -> keep;
-    # 4 one available, confirms -> drop; 5 two available, one fails -> drop; 6 none available -> keep;
-    # 7 not above -> unchanged
-    assert list(keep) == [False, False, True, True, False, False, True, True]
+    # 4 one available (not independent evidence) -> keep; 5 two available, one fails -> drop;
+    # 6 none available -> keep; 7 not above -> unchanged
+    assert list(keep) == [False, False, True, True, True, False, True, True]
 
 
 def test_confirm_neighbors_flags_shared_rise():
@@ -230,3 +230,42 @@ def test_confirm_weather_cold_tail_in_heating_regime():
     assert (c.loc["2024-01-20"] == 1.0).all()
     assert (c.loc["2024-01-10"] == 0.0).all()
     assert (c.loc["2024-07-15"] == 0.0).all()  # warm but ordinary
+
+
+# ---- composite v0.3 ----
+
+
+def synthetic_ba(seed=0, factor=1.6):
+    """Two years of hourly load with a seasonal level, its temperature, two neighbours, one genuine arctic
+    morning (load up everywhere, temperature in the cold tail) and one lone spike on a mild afternoon."""
+    from grid_sentinel.rules import sentinel_v2
+
+    idx = pd.date_range("2022-01-01", "2024-03-01 23:00", freq="h")
+    t = np.arange(len(idx))
+    doy = idx.dayofyear.to_numpy()
+    rng = np.random.default_rng(seed)
+    daily = 10_000 + 2_500 * np.sin(2 * np.pi * (t - 6) / 24)
+    season = 1 + 0.15 * np.cos(2 * np.pi * doy / 365.25)
+    load = pd.Series(daily * season + rng.normal(0, 60, len(t)), index=idx)
+    temp = pd.Series(50 - 30 * np.cos(2 * np.pi * doy / 365.25) + rng.normal(0, 3, len(t)), index=idx)
+    nb = {"n1": load * 0.5 + rng.normal(0, 30, len(t)), "n2": load * 2.0 + rng.normal(0, 100, len(t))}
+    win = slice("2024-01-17 06:00", "2024-01-17 09:00")
+    for s in (load, nb["n1"], nb["n2"]):
+        s.loc[win] *= factor
+    temp.loc["2024-01-17"] = -10.0
+    load.loc["2024-02-10 15:00"] *= factor
+    assert sentinel_v2(load).loc[win, "is_anomaly"].any(), "the fixture must be flagged by v0.2 to be meaningful"
+    return load, temp, nb, win
+
+
+def test_sentinel_v3_keeps_shared_cold_peak_and_drops_lone_spike():
+    from grid_sentinel import sentinel_v3
+
+    load, temp, nb, win = synthetic_ba()
+    res = sentinel_v3(load, temperature_f=temp, neighbors=nb)
+    assert not res.loc[win, "is_anomaly"].any()
+    assert (res.loc[win, "confirmed_by"] == "extreme kept").any()
+    assert res.loc["2024-02-10 15:00", "is_anomaly"]
+    assert {"above_expected", "check_profile", "check_neighbors", "check_weather"} <= set(res.columns)
+    off = sentinel_v3(load, temperature_f=temp, neighbors=nb, extremes="off")
+    assert off.loc[win, "is_anomaly"].any()  # without the rule the cold morning is a fault

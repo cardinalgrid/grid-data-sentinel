@@ -12,7 +12,7 @@ from grid_sentinel.profile import (
     regime_from_temperature,
 )
 from grid_sentinel.repair import repair
-from grid_sentinel.rules import sentinel, sentinel_v2, stuck_values
+from grid_sentinel.rules import sentinel, sentinel_v2, sentinel_v3, stuck_values
 from grid_sentinel.synthetic import inject_anomalies
 from grid_sentinel.teda import RecursiveTEDA
 
@@ -38,6 +38,7 @@ __all__ = [
     "score_labels",
     "sentinel",
     "sentinel_v2",
+    "sentinel_v3",
     "stuck_values",
     "summarize_intervals",
 ]

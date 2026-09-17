@@ -3,7 +3,7 @@
 Each check returns, per timestamp, 1.0 (the reading is confirmed as genuine), 0.0 (not confirmed) or
 NaN (the check is not available). ``preserve_extremes`` applies the rule: a flagged reading above the
 expected profile is kept as a fault only if at least two of the available checks fail to confirm it;
-with fewer than three checks available it must fail all of them; with none available the flag stands.
+with exactly two available it must fail both; with fewer than two the original flag stands.
 """
 
 from __future__ import annotations
@@ -64,8 +64,8 @@ def preserve_extremes(flagged: np.ndarray, above: np.ndarray, checks: list) -> n
     c = np.vstack([np.asarray(pd.Series(x).to_numpy(), dtype=float) for x in checks])
     available = np.isfinite(c).sum(axis=0)
     failed = (c == 0.0).sum(axis=0)
-    needed = np.minimum(2, available)
-    keep_fault = np.where(available == 0, True, failed >= needed)
+    # fewer than two checks is not independent evidence: the original decision stands
+    keep_fault = np.where(available < 2, True, failed >= 2)
     out = flagged.copy()
     sel = flagged & above
     out[sel] = keep_fault[sel]
