@@ -11,7 +11,7 @@ import pandas as pd
 from grid_sentinel import __version__
 from grid_sentinel.autoencoder import SparseAutoencoder
 from grid_sentinel.baselines import hampel, iqr, rolling_zscore
-from grid_sentinel.benchmark import DEFAULT_BAS, run, summarise, write_results
+from grid_sentinel.benchmark import DEFAULT_BAS, make_context, run, summarise, write_results
 from grid_sentinel.repair import repair
 from grid_sentinel.rules import sentinel, stuck_values
 from grid_sentinel.teda import RecursiveTEDA
@@ -54,12 +54,14 @@ def _detect(args: argparse.Namespace) -> int:
 
 
 def _benchmark(args: argparse.Namespace) -> int:
+    context = make_context(Path(args.tidy), Path(args.isd), Path(args.neighbors)) if args.isd else None
     results = run(
         Path(args.tidy),
         bas=tuple(args.bas),
         years=tuple(args.years),
         rate=args.rate,
         seed=args.seed,
+        context=context,
     )
     if results.empty:
         print("no series found; check --tidy, --bas and --years", file=sys.stderr)
@@ -89,6 +91,8 @@ def main(argv: list[str] | None = None) -> int:
     b.add_argument("--years", nargs="+", type=int, default=[2023, 2024])
     b.add_argument("--rate", type=float, default=0.005)
     b.add_argument("--seed", type=int, default=0)
+    b.add_argument("--isd", default=None, help="directory with cached NOAA ISD-Lite files; enables the v0.3 context")
+    b.add_argument("--neighbors", default="docs/neighbors.csv", help="neighbour table (see scripts/make_neighbors.py)")
     b.add_argument("--out", default="results")
     b.set_defaults(func=_benchmark)
 

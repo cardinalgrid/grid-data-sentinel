@@ -12,6 +12,11 @@ START, END = "<!-- results:start -->", "<!-- results:end -->"
 
 LABELS = {
     "sentinel": "Composite v0.1 (TEDA levels + TEDA differences + stuck rule)",
+    "sentinel_v3": "Composite v0.3 (v0.2 + temperature regime + extremes kept by two of three cross-checks)",
+    "sentinel_v3_distance_neighbors": "Composite v0.3 with neighbours by station distance instead of interchange",
+    "sentinel_v3_profile_neighbors": "Composite v0.3, profile and neighbours only",
+    "sentinel_v3_profile_weather": "Composite v0.3, profile and weather only",
+    "sentinel_v3_regime_only": "Composite v0.2 with the temperature regime, no extremes rule",
     "sentinel_v2": "Composite v0.2 (v0.1 detectors confirmed by the calendar profile)",
     "profile_residual": "Profile residual alone (day type, 2 weeks + last-year analogs, k=4)",
     "modified_zscore": "Modified z-score (30 d, k=3.5)",

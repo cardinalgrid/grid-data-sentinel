@@ -16,7 +16,7 @@ from grid_sentinel.rules import sentinel, sentinel_v2, sentinel_v3, stuck_values
 from grid_sentinel.synthetic import inject_anomalies
 from grid_sentinel.teda import RecursiveTEDA
 
-__version__ = "0.2.0"
+__version__ = "0.3.0"
 
 __all__ = [
     "RecursiveTEDA",

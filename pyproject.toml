@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "grid-data-sentinel"
-version = "0.2.0"
+version = "0.3.0"
 description = "Anomaly detection and repair for load telemetry: recursive TEDA, sparse autoencoders and calendar-aware profiles, benchmarked on public EIA-930 data."
 readme = "README.md"
 license = { text = "Apache-2.0" }
@@ -33,6 +33,7 @@ where = ["src"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+pythonpath = ["."]
 
 [tool.ruff]
 line-length = 110

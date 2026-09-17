@@ -285,3 +285,41 @@ def test_events_and_window():
     assert peak == pd.Timestamp("2024-01-15 07:00")
     assert win[0] == pd.Timestamp("2024-01-13 19:00") and win[-1] == pd.Timestamp("2024-01-16 19:00")
     assert len(win) == 73
+
+
+# ---- benchmark with context ----
+
+
+def test_detectors_accept_context_and_run_without_it(tmp_path):
+    from grid_sentinel.benchmark import default_detectors, run
+
+    make_tidy(tmp_path, hours=24 * 40)
+    dets = {k: v for k, v in default_detectors().items() if k in ("sentinel_v3", "sentinel_v2")}
+    res = run(tmp_path, bas=("PJM",), years=(2024,), detectors=dets)
+    assert sorted(res["detector"]) == ["sentinel_v2", "sentinel_v3"] and res["hours"].iloc[0] == 24 * 40
+    seen = {}
+    res2 = run(tmp_path, bas=("PJM",), years=(2024,), detectors={"probe": lambda s, c: (seen.update(c), dets["sentinel_v2"](s, c))[1]},
+               context=lambda ba, year: {"temperature_f": None, "neighbors": {}, "tag": (ba, year)})
+    assert seen["tag"] == ("PJM", 2024) and len(res2) == 1
+
+
+# ---- storms script ----
+
+
+def test_evaluate_window_counts():
+    from scripts.storms import evaluate_window, inject_in_window
+
+    idx = pd.date_range("2024-01-01", periods=100, freq="h")
+    res = pd.DataFrame({"is_anomaly": np.zeros(100, dtype=bool)}, index=idx)
+    res.iloc[10, 0] = True
+    res.iloc[20, 0] = True
+    label = np.zeros(100, dtype=np.int8)
+    label[20] = 1
+    raw_bad = np.zeros(100, dtype=bool)
+    out = evaluate_window(res, idx[5:30], idx[10], label, raw_bad)
+    assert out["flagged"] == 2 and out["peak_flagged"] is True and out["injected_in_window"] == 1
+    assert out["recall_in_window"] == 1.0 and abs(out["flagged_share"] - 2 / 25) < 1e-9
+    s = pd.Series(1000.0 + np.arange(100), index=idx)
+    inj = inject_in_window(s, idx[40:80], rate=0.1, seed=1)
+    assert inj["label"].sum() > 0 and inj["label"].iloc[:40].sum() == 0 and inj["label"].iloc[80:].sum() == 0
+    assert (inj["value"].iloc[:40] == inj["clean"].iloc[:40]).all()

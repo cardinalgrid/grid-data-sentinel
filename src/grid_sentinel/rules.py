@@ -131,14 +131,15 @@ def sentinel_v3(
     neighbors: dict[str, pd.Series] | None = None,
     checks: tuple[str, ...] = ("profile", "neighbors", "weather"),
     extremes: str = "preserve",
-    profile_band: float = 0.5,
+    profile_band: float = 0.35,
     **v2_kwargs,
 ) -> pd.DataFrame:
     """Composite v0.3: v0.2 with a temperature-derived regime and preservation of genuine extremes.
 
     A reading flagged by v0.2 *above* its expected value is kept as a fault only if at least two of the
     available cross-checks fail to confirm it as genuine: the profile (the reading is within
-    ``profile_band`` of the expected value, a wider band than the one v0.2 uses to raise the alarm), the
+    ``profile_band`` of the expected value, the same band v0.2 uses, so it confirms only readings that the
+    robust-residual rule flagged while the ratio to the expectation stayed plausible), the
     neighbours (the BA's interchange partners rose at the same hour, each against its own recent normal)
     and the weather (the hour's temperature is in the BA's own seasonal tail for the heating or cooling
     regime). With two checks available the reading must fail both; with one, or none, the v0.2 decision
