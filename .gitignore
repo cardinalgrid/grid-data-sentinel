@@ -11,3 +11,6 @@ dist/
 # local runs
 detections*.csv
 *.audit.csv
+
+# data downloads
+data/

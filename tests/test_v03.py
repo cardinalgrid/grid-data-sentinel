@@ -142,3 +142,46 @@ def test_hourly_temperature_f_aligns_to_local_index(tmp_path):
     assert t.index.equals(s.index)
     assert abs(t.iloc[0] - 50.0) < 1e-9  # local 00:00 Jan 1 = UTC 05:00 Jan 1 -> 10 C
     assert abs(t.loc["2024-01-01 19:00"] - 68.0) < 1e-9  # local 19:00 Jan 1 = UTC 00:00 Jan 2 -> 20 C
+
+
+# ---- neighbours ----
+
+INTERCHANGE_CSV = (
+    '"Balancing Authority","Data Date","Hour Number","Directly Interconnected Balancing Authority",'
+    '"Interchange (MW)","Local Time at End of Hour","UTC Time at End of Hour","Region","DIBA_Region"\n'
+    "AECI,01/01/2024,1,MISO,74,01/01/2024 1:00:00 AM,01/01/2024 7:00:00 AM,MIDW,MIDW\n"
+    "AECI,01/01/2024,2,MISO,-100,01/01/2024 2:00:00 AM,01/01/2024 8:00:00 AM,MIDW,MIDW\n"
+    'AECI,01/01/2024,3,MISO,"1,200",01/01/2024 3:00:00 AM,01/01/2024 9:00:00 AM,MIDW,MIDW\n'
+    "AECI,01/01/2024,1,SPA,-233,01/01/2024 1:00:00 AM,01/01/2024 7:00:00 AM,MIDW,CENT\n"
+)
+
+
+def test_interchange_pairs_median_abs(tmp_path):
+    from grid_sentinel.neighbors import interchange_pairs
+
+    p = tmp_path / "EIA930_INTERCHANGE_2024_Jan_Jun.csv"
+    p.write_text(INTERCHANGE_CSV, encoding="utf-8")
+    pairs = interchange_pairs([p]).set_index(["ba", "neighbor"])
+    assert pairs.loc[("AECI", "MISO"), "weight_mw"] == 100.0 and pairs.loc[("AECI", "MISO"), "hours"] == 3
+    assert pairs.loc[("AECI", "SPA"), "weight_mw"] == 233.0
+
+
+def test_neighbor_table_uses_interchange_then_distance():
+    from grid_sentinel.neighbors import neighbor_table, neighbors_of
+
+    pairs = pd.DataFrame(
+        {"ba": ["A", "A", "B", "E", "E", "E"], "neighbor": ["B", "X", "A", "A", "B", "C"],
+         "weight_mw": [500.0, 50.0, 500.0, 300.0, 700.0, 0.0], "hours": [100] * 6}
+    )
+    dist = pd.DataFrame(
+        [[0, 100, 300, 900, 50], [100, 0, 250, 900, 60], [300, 250, 0, 900, 350], [900, 900, 900, 0, 900],
+         [50, 60, 350, 900, 0]],
+        index=list("ABCDE"), columns=list("ABCDE"), dtype=float,
+    )
+    t = neighbor_table(pairs, dist, has_load={"A", "B", "C", "D", "E"})
+    # E has two interchange partners with load data -> interchange, heaviest first
+    assert neighbors_of(t, "E") == ["B", "A"] and set(t[t["ba"] == "E"]["source"]) == {"interchange"}
+    # A has one partner with load data (X has none) -> distance fallback within 400 km, nearest first
+    assert neighbors_of(t, "A") == ["E", "B", "C"] and set(t[t["ba"] == "A"]["source"]) == {"distance"}
+    # D has nothing within 400 km and no interchange -> no neighbours
+    assert neighbors_of(t, "D") == []
