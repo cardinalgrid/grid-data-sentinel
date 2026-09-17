@@ -13,13 +13,11 @@ authors = [{ name = "Ricardo W. C. Guerra Filho" }]
 keywords = ["anomaly detection", "load telemetry", "EIA-930", "TEDA", "autoencoder", "data quality", "power systems"]
 dependencies = [
   "numpy>=1.24",
-  "pandas>=2.0",
-  "requests>=2.28",
 ]
 
 [project.optional-dependencies]
-parquet = ["pyarrow>=11"]
-dev = ["pytest>=7", "ruff>=0.4", "pyarrow>=11"]
+pandas = ["pandas>=2.0", "pyarrow>=11", "requests>=2.28"]
+dev = ["pytest>=7", "ruff>=0.4", "pandas>=2.0", "pyarrow>=11", "requests>=2.28", "matplotlib>=3.7"]
 
 [project.scripts]
 grid-sentinel = "grid_sentinel.cli:main"

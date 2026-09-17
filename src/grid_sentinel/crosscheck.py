@@ -9,7 +9,11 @@ with exactly two available it must fail both; with fewer than two the original f
 from __future__ import annotations
 
 import numpy as np
-import pandas as pd
+
+try:
+    import pandas as pd
+except ImportError as e:  # pragma: no cover
+    raise ImportError("grid_sentinel.crosscheck needs pandas: pip install grid-data-sentinel[pandas]") from e
 
 from grid_sentinel.profile import regime_from_temperature
 from grid_sentinel.weather import daily_mean_f, temperature_tail

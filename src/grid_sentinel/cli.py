@@ -6,7 +6,10 @@ import argparse
 import sys
 from pathlib import Path
 
-import pandas as pd
+try:
+    import pandas as pd
+except ImportError as e:  # pragma: no cover
+    raise ImportError("grid_sentinel.cli needs pandas: pip install grid-data-sentinel[pandas]") from e
 
 from grid_sentinel import __version__
 from grid_sentinel.autoencoder import SparseAutoencoder

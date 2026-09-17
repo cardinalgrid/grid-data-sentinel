@@ -3,7 +3,11 @@
 from __future__ import annotations
 
 import numpy as np
-import pandas as pd
+
+try:
+    import pandas as pd
+except ImportError as e:  # pragma: no cover
+    raise ImportError("grid_sentinel.rules needs pandas: pip install grid-data-sentinel[pandas]") from e
 
 from grid_sentinel.profile import profile_residual, regime_from_peak_hour, regime_from_temperature
 from grid_sentinel.teda import RecursiveTEDA

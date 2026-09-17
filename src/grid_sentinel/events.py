@@ -7,7 +7,10 @@ reports the largest day-ahead load under-forecast by a balancing authority (11.8
 
 from __future__ import annotations
 
-import pandas as pd
+try:
+    import pandas as pd
+except ImportError as e:  # pragma: no cover
+    raise ImportError("grid_sentinel.events needs pandas: pip install grid-data-sentinel[pandas]") from e
 
 EVENTS = [
     {"name": "uri", "label": "Winter Storm Uri", "start": "2021-02-13", "end": "2021-02-18"},

@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 
-from grid_sentinel import (
+from grid_sentinel.legacy import (
     day_types,
     expected_profile,
     intervals_from_mask,

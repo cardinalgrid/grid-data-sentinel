@@ -3,7 +3,11 @@
 from __future__ import annotations
 
 import numpy as np
-import pandas as pd
+
+try:
+    import pandas as pd
+except ImportError as e:  # pragma: no cover
+    raise ImportError("grid_sentinel.baselines needs pandas: pip install grid-data-sentinel[pandas]") from e
 
 
 def _frame(series: pd.Series | np.ndarray, score: np.ndarray, thr: float, flags: np.ndarray) -> pd.DataFrame:

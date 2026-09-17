@@ -15,7 +15,11 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 import numpy as np
-import pandas as pd
+
+try:
+    import pandas as pd
+except ImportError as e:  # pragma: no cover
+    raise ImportError("grid_sentinel.benchmark needs pandas: pip install grid-data-sentinel[pandas]") from e
 
 from grid_sentinel import __version__
 from grid_sentinel.autoencoder import SparseAutoencoder

@@ -10,7 +10,10 @@ from __future__ import annotations
 import math
 from pathlib import Path
 
-import pandas as pd
+try:
+    import pandas as pd
+except ImportError as e:  # pragma: no cover
+    raise ImportError("grid_sentinel.stations needs pandas: pip install grid-data-sentinel[pandas]") from e
 import requests
 
 HISTORY_URL = "https://www.ncei.noaa.gov/pub/data/noaa/isd-history.csv"

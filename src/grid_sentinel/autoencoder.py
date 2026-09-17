@@ -17,7 +17,11 @@ decade of hourly data takes seconds.
 from __future__ import annotations
 
 import numpy as np
-import pandas as pd
+
+try:
+    import pandas as pd
+except ImportError as e:  # pragma: no cover
+    raise ImportError("grid_sentinel.autoencoder needs pandas: pip install grid-data-sentinel[pandas]") from e
 
 
 def _windows(values: np.ndarray, window: int) -> np.ndarray:

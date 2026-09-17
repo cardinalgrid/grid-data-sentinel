@@ -14,7 +14,11 @@ import time
 from pathlib import Path
 
 import numpy as np
-import pandas as pd
+
+try:
+    import pandas as pd
+except ImportError as e:  # pragma: no cover
+    raise ImportError("grid_sentinel.weather needs pandas: pip install grid-data-sentinel[pandas]") from e
 import requests
 
 from grid_sentinel.data import load_series_local, utc_offset

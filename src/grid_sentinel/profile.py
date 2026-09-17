@@ -18,7 +18,11 @@ from __future__ import annotations
 import warnings
 
 import numpy as np
-import pandas as pd
+
+try:
+    import pandas as pd
+except ImportError as e:  # pragma: no cover
+    raise ImportError("grid_sentinel.profile needs pandas: pip install grid-data-sentinel[pandas]") from e
 
 from grid_sentinel.calendar_us import day_types
 

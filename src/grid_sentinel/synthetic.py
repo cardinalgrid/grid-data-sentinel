@@ -16,7 +16,11 @@ sensitivity to the injected faults, not the absolute quality of the source serie
 from __future__ import annotations
 
 import numpy as np
-import pandas as pd
+
+try:
+    import pandas as pd
+except ImportError as e:  # pragma: no cover
+    raise ImportError("grid_sentinel.synthetic needs pandas: pip install grid-data-sentinel[pandas]") from e
 
 TYPES = ("spike", "dip", "zero", "stuck", "scale")
 

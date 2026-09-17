@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from grid_sentinel import (
+from grid_sentinel.legacy import (
     RecursiveTEDA,
     SparseAutoencoder,
     hampel,

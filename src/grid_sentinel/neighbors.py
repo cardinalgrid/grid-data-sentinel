@@ -9,7 +9,10 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import pandas as pd
+try:
+    import pandas as pd
+except ImportError as e:  # pragma: no cover
+    raise ImportError("grid_sentinel.neighbors needs pandas: pip install grid-data-sentinel[pandas]") from e
 import requests
 
 INTERCHANGE_URL = "https://www.eia.gov/electricity/gridmonitor/sixMonthFiles/EIA930_INTERCHANGE_{year}_{half}.csv"

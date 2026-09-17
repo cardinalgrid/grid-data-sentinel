@@ -4,7 +4,10 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import pandas as pd
+try:
+    import pandas as pd
+except ImportError as e:  # pragma: no cover
+    raise ImportError("grid_sentinel.data needs pandas: pip install grid-data-sentinel[pandas]") from e
 
 
 def tidy_frame(tidy_dir: Path, ba: str, year: int, columns: tuple[str, ...]) -> pd.DataFrame:

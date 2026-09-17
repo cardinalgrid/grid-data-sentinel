@@ -8,7 +8,11 @@ and a table of intervals per class is a compact description of the quality of a 
 from __future__ import annotations
 
 import numpy as np
-import pandas as pd
+
+try:
+    import pandas as pd
+except ImportError as e:  # pragma: no cover
+    raise ImportError("grid_sentinel.intervals needs pandas: pip install grid-data-sentinel[pandas]") from e
 
 CLASSES = (
     ("up to 1 h", 1),

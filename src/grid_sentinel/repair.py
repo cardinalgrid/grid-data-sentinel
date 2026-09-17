@@ -3,7 +3,11 @@
 from __future__ import annotations
 
 import numpy as np
-import pandas as pd
+
+try:
+    import pandas as pd
+except ImportError as e:  # pragma: no cover
+    raise ImportError("grid_sentinel.repair needs pandas: pip install grid-data-sentinel[pandas]") from e
 
 from grid_sentinel.intervals import intervals_from_mask
 
