@@ -20,6 +20,7 @@ import pandas as pd
 from grid_sentinel import __version__
 from grid_sentinel.autoencoder import SparseAutoencoder
 from grid_sentinel.baselines import hampel, iqr, modified_zscore, relative_deviation, rolling_zscore
+from grid_sentinel.data import load_series_local
 from grid_sentinel.metrics import score_labels
 from grid_sentinel.profile import profile_residual
 from grid_sentinel.rules import sentinel, sentinel_v2, stuck_values
@@ -59,22 +60,6 @@ def load_series(tidy_dir: Path, ba: str, year: int) -> pd.Series:
     d = pd.concat(frames).sort_values("utc_end")
     s = d.set_index("utc_end")["demand"].astype(float)
     return s[s > 0]
-
-
-def load_series_local(tidy_dir: Path, ba: str, year: int) -> pd.Series:
-    """Hourly demand indexed by local hour ending (naive), as reported in EIA-930; zeros are kept."""
-    frames = []
-    for half in ("H1", "H2"):
-        f = tidy_dir / f"{year}{half}.parquet"
-        if f.exists():
-            d = pd.read_parquet(f, columns=["ba", "local_end", "demand"])
-            frames.append(d[d["ba"] == ba])
-    if not frames:
-        return pd.Series(dtype=float)
-    d = pd.concat(frames).sort_values("local_end").drop_duplicates("local_end")
-    s = d.set_index("local_end")["demand"].astype(float)
-    s.index = pd.DatetimeIndex(s.index) - pd.Timedelta(hours=1)  # hour ending -> hour beginning, so hour 0..23 is the local day
-    return s
 
 
 def raw_fault_mask(clean: np.ndarray) -> np.ndarray:
