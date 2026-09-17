@@ -65,28 +65,31 @@ The first cold morning of the season in the Carolinas: demand peaks at 7 a.m. fo
 Ten large balancing authorities, hourly demand for 2023 and 2024 from the EIA-930 balance files (via [ba-forecast-scorecard](https://github.com/cardinalgrid/ba-forecast-scorecard)), 0.5% of readings corrupted with labelled faults, every detector run on the corrupted series with its default settings.
 
 <!-- results:start -->
-Benchmark v0.3.0 run 2026-09-17: 20 BA-years (PJM, MISO, ERCO, CISO, SWPP, NYIS, ISNE, TVA, DUK, BPAT; 2023, 2024), 0.5% of readings corrupted, tolerance ±1 reading. Means over series.
+Benchmark v0.4.0 run 2026-09-17: 20 BA-years (PJM, MISO, ERCO, CISO, SWPP, NYIS, ISNE, TVA, DUK, BPAT; 2023, 2024), 0.5% of readings corrupted, tolerance ±1 reading. Means over series.
 
 | Detector | Precision | Precision (adj.) | Recall | F1 (adj.) | MCC | Spike | Dip | Zero | Stuck | Scale | s/series |
 |---|---|---|---|---|---|---|---|---|---|---|---|
-| Composite v0.3, profile and neighbours only | 0.91 | 0.97 | 0.98 | 0.97 | 0.93 | 0.85 | 0.68 | 1.00 | 1.00 | 1.00 | 0.2 |
-| Composite v0.3 (v0.2 + temperature regime + extremes kept by two of three cross-checks) | 0.92 | 0.98 | 0.97 | 0.97 | 0.93 | 0.95 | 0.71 | 1.00 | 1.00 | 0.99 | 0.3 |
-| Composite v0.3 with neighbours by station distance instead of interchange | 0.92 | 0.98 | 0.97 | 0.97 | 0.93 | 0.90 | 0.70 | 1.00 | 1.00 | 0.99 | 0.3 |
-| Composite v0.3, profile and weather only | 0.92 | 0.98 | 0.97 | 0.97 | 0.93 | 0.85 | 0.68 | 1.00 | 1.00 | 0.99 | 0.2 |
-| Composite v0.2 (v0.1 detectors confirmed by the calendar profile) | 0.90 | 0.96 | 0.98 | 0.97 | 0.93 | 0.95 | 0.70 | 1.00 | 1.00 | 1.00 | 0.2 |
-| Composite v0.2 with the temperature regime, no extremes rule | 0.91 | 0.97 | 0.97 | 0.97 | 0.93 | 1.00 | 0.72 | 1.00 | 1.00 | 0.99 | 0.2 |
-| Composite v0.1 (TEDA levels + TEDA differences + stuck rule) | 0.87 | 0.93 | 0.92 | 0.92 | 0.88 | 1.00 | 0.61 | 1.00 | 1.00 | 0.94 | 0.1 |
-| Sparse autoencoder (window 4, code 2, factor 20) | 0.89 | 0.89 | 0.93 | 0.91 | 0.91 | 0.90 | 0.90 | 0.90 | 0.04 | 0.98 | 0.3 |
-| Recursive TEDA (levels, m=4) | 0.97 | 0.98 | 0.82 | 0.89 | 0.89 | 0.60 | 0.21 | 1.00 | 0.00 | 0.93 | 0.0 |
-| Recursive TEDA (levels, m=4, robust update) | 0.81 | 0.82 | 0.91 | 0.84 | 0.85 | 0.65 | 0.46 | 1.00 | 0.00 | 1.00 | 0.0 |
-| Modified z-score (30 d, k=3.5) | 0.67 | 0.68 | 0.92 | 0.76 | 0.78 | 0.85 | 0.60 | 1.00 | 0.00 | 1.00 | 0.0 |
+| v0.3 function sentinel_v3 (legacy, for comparison) | 0.92 | 0.98 | 0.97 | 0.97 | 0.93 | 0.95 | 0.71 | 1.00 | 1.00 | 0.99 | 0.3 |
+| Composite v0.3 (v0.2 + temperature regime + extremes kept by two of three cross-checks) | 0.92 | 0.98 | 0.97 | 0.97 | 0.93 | 0.95 | 0.71 | 1.00 | 1.00 | 0.99 | 3.4 |
+| Composite v0.3 with neighbours by station distance instead of interchange | 0.92 | 0.98 | 0.97 | 0.97 | 0.93 | 0.90 | 0.70 | 1.00 | 1.00 | 0.99 | 2.7 |
+| v0.3 function sentinel_v2 (legacy, for comparison) | 0.90 | 0.96 | 0.98 | 0.97 | 0.93 | 0.95 | 0.70 | 1.00 | 1.00 | 1.00 | 0.2 |
+| Composite v0.3, profile and weather only | 0.92 | 0.98 | 0.97 | 0.97 | 0.93 | 0.85 | 0.68 | 1.00 | 1.00 | 0.99 | 1.6 |
+| Composite v0.2 (v0.1 detectors confirmed by the calendar profile) | 0.90 | 0.96 | 0.98 | 0.97 | 0.93 | 0.95 | 0.70 | 1.00 | 1.00 | 1.00 | 1.5 |
+| Composite v0.3, profile and neighbours only | 0.92 | 0.98 | 0.97 | 0.97 | 0.93 | 0.90 | 0.68 | 1.00 | 1.00 | 0.99 | 3.3 |
+| Composite v0.2 with the temperature regime, no extremes rule | 0.91 | 0.97 | 0.97 | 0.97 | 0.93 | 1.00 | 0.72 | 1.00 | 1.00 | 0.99 | 3.4 |
+| Composite v0.3 with exponential forgetting (half-life 14 days) | 0.88 | 0.94 | 0.96 | 0.95 | 0.91 | 0.95 | 0.99 | 1.00 | 1.00 | 0.95 | 3.4 |
+| v0.3 function sentinel, the v0.1 composite (legacy) | 0.87 | 0.93 | 0.92 | 0.92 | 0.88 | 1.00 | 0.61 | 1.00 | 1.00 | 0.94 | 0.1 |
+| Sparse autoencoder (window 4, code 2, factor 20) | 0.88 | 0.89 | 0.93 | 0.91 | 0.91 | 0.90 | 0.90 | 0.90 | 0.04 | 0.98 | 0.3 |
+| Recursive TEDA (levels, m=4) | 0.97 | 0.98 | 0.82 | 0.89 | 0.89 | 0.60 | 0.21 | 1.00 | 0.00 | 0.93 | 0.1 |
+| Recursive TEDA (levels, m=4, robust update) | 0.81 | 0.82 | 0.91 | 0.84 | 0.85 | 0.65 | 0.46 | 1.00 | 0.00 | 1.00 | 0.1 |
+| Modified z-score (30 d, k=3.5) | 0.67 | 0.67 | 0.92 | 0.76 | 0.77 | 0.80 | 0.60 | 1.00 | 0.00 | 1.00 | 0.5 |
 | Relative deviation from 5-h centred mean (15%) | 0.69 | 0.70 | 0.30 | 0.41 | 0.45 | 1.00 | 1.00 | 1.00 | 0.00 | 0.15 | 0.0 |
-| Profile residual alone (day type, 2 weeks + last-year analogs, k=4) | 0.23 | 0.23 | 0.95 | 0.37 | 0.46 | 0.90 | 0.94 | 1.00 | 0.16 | 1.00 | 0.1 |
-| Recursive TEDA (differenced, m=3) | 0.72 | 0.72 | 0.19 | 0.29 | 0.35 | 1.00 | 0.61 | 1.00 | 0.00 | 0.20 | 0.0 |
+| Profile residual alone (day type, 2 weeks + last-year analogs, k=4) | 0.23 | 0.23 | 0.95 | 0.37 | 0.46 | 0.90 | 0.94 | 1.00 | 0.16 | 1.00 | 1.4 |
+| Recursive TEDA (differenced, m=3) | 0.72 | 0.72 | 0.19 | 0.29 | 0.35 | 1.00 | 0.61 | 1.00 | 0.00 | 0.20 | 0.1 |
 | Global IQR (k=1.5) | 0.17 | 0.17 | 0.93 | 0.27 | 0.38 | 0.60 | 0.78 | 1.00 | 0.10 | 1.00 | 0.0 |
-| Rolling z-score (168 h, k=3) | 0.70 | 0.70 | 0.11 | 0.18 | 0.26 | 0.95 | 0.85 | 1.00 | 0.00 | 0.00 | 0.0 |
-| stuck_rule | 0.46 | 0.55 | 0.06 | 0.11 | 0.16 | 0.00 | 0.00 | 0.00 | 1.00 | 0.01 | 0.0 |
+| Rolling z-score (168 h, k=3) | 0.68 | 0.69 | 0.11 | 0.18 | 0.25 | 0.95 | 0.85 | 1.00 | 0.00 | 0.00 | 0.0 |
 | Hampel filter (24 h, k=3) | 0.07 | 0.07 | 0.20 | 0.10 | 0.11 | 0.95 | 0.72 | 1.00 | 0.08 | 0.15 | 0.0 |
+| stuck_rule | 0.46 | 0.55 | 0.05 | 0.10 | 0.14 | 0.00 | 0.00 | 0.00 | 1.00 | 0.01 | 0.1 |
 
 Columns Spike to Scale are recall by anomaly type. Precision (adj.) and F1 (adj.) do not count as false alarms the flags on readings that the public series already had wrong (frozen runs, non-positive values, unit errors; see `docs/real_cases.md`); the plain precision does. Full table: `results/benchmark_by_series.csv`.
 <!-- results:end -->
