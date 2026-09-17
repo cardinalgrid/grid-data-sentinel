@@ -2,14 +2,14 @@
 weekend profile they resemble. The mapping follows the evidence in Cardinal Grid Note 2: Thanksgiving,
 Christmas Day, Christmas Eve, New Year's Eve and the day after Thanksgiving behave like Saturdays;
 Memorial Day, Labor Day, Independence Day and New Year's Day like Sundays; MLK Day, Presidents' Day,
-Columbus Day and Veterans Day are not special for load. Super Bowl Sunday is treated as a Saturday."""
+Columbus Day and Veterans Day are not special for load. Super Bowl Sunday is treated as a Saturday.
+No pandas: dates are numpy datetime64 and the standard library's ``date``."""
 
 from __future__ import annotations
 
 from datetime import date, timedelta
 
 import numpy as np
-import pandas as pd
 
 WORKDAY, SATURDAY, SUNDAY = 0, 1, 2
 
@@ -60,15 +60,24 @@ def special_days(year: int) -> dict[date, int]:
     return out
 
 
-def day_types(index: pd.DatetimeIndex) -> np.ndarray:
-    """Day type (0 workday, 1 Saturday, 2 Sunday) for each timestamp, special days included."""
-    idx = pd.DatetimeIndex(index)
-    years = range(int(idx.year.min()), int(idx.year.max()) + 1)
+def day_types(index) -> np.ndarray:
+    """Day type (0 workday, 1 Saturday, 2 Sunday) for each timestamp or day, special days included.
+
+    Accepts any datetime64 array (hourly timestamps are truncated to the day) and pandas datetime indexes.
+    """
+    days = np.asarray(index).astype("datetime64[D]")
+    ords = days.astype("int64")
+    weekday = (ords + 3) % 7  # 1970-01-01 was a Thursday
+    base = np.where(weekday < 5, WORKDAY, np.where(weekday == 5, SATURDAY, SUNDAY))
+    if len(days) == 0:
+        return base.astype(np.int8)
+    years = range(int(days.min().astype("datetime64[Y]").astype(int)) + 1970,
+                  int(days.max().astype("datetime64[Y]").astype(int)) + 1971)
     cal: dict[date, int] = {}
     for y in years:
         cal.update(special_days(y))
-    dates = idx.date
-    wd = idx.weekday.to_numpy()
-    base = np.where(wd < 5, WORKDAY, np.where(wd == 5, SATURDAY, SUNDAY))
-    special = np.array([cal.get(d, -1) for d in dates])
-    return np.where(special >= 0, special, base)
+    special = np.fromiter((cal.get(d, -1) for d in days.astype(object)), dtype=np.int64, count=len(days))
+    return np.where(special >= 0, special, base).astype(np.int8)
+
+
+day_types_index = day_types  # name kept for callers that pass a pandas DatetimeIndex
