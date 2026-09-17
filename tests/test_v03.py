@@ -185,3 +185,48 @@ def test_neighbor_table_uses_interchange_then_distance():
     assert neighbors_of(t, "A") == ["E", "B", "C"] and set(t[t["ba"] == "A"]["source"]) == {"distance"}
     # D has nothing within 400 km and no interchange -> no neighbours
     assert neighbors_of(t, "D") == []
+
+
+# ---- cross-checks ----
+
+
+def test_preserve_extremes_two_of_three_truth_table():
+    from grid_sentinel.crosscheck import preserve_extremes
+
+    flagged = np.array([True] * 8)
+    above = np.array([True] * 7 + [False])
+    profile = np.array([1, 1, 0, 0, 1, np.nan, np.nan, 0], dtype=float)
+    neighbours = np.array([1, 0, 0, 1, np.nan, 1, np.nan, 0], dtype=float)
+    weather = np.array([1, 1, 0, 0, np.nan, 0, np.nan, 0], dtype=float)
+    keep = preserve_extremes(flagged, above, [profile, neighbours, weather])
+    # 0 all confirm -> drop; 1 one fails -> drop; 2 all fail -> keep; 3 two fail -> keep;
+    # 4 one available, confirms -> drop; 5 two available, one fails -> drop; 6 none available -> keep;
+    # 7 not above -> unchanged
+    assert list(keep) == [False, False, True, True, False, False, True, True]
+
+
+def test_confirm_neighbors_flags_shared_rise():
+    from grid_sentinel.crosscheck import confirm_neighbors
+
+    idx = pd.date_range("2024-01-01", periods=24 * 60, freq="h")
+    base = 100 + 20 * np.sin(2 * np.pi * (np.arange(len(idx)) - 6) / 24)
+    n1 = pd.Series(base.copy(), index=idx)
+    n2 = pd.Series(2 * base, index=idx)  # a bigger neighbour, same shape
+    n3 = pd.Series(0.5 * base, index=idx)
+    for s in (n1, n2):
+        s.iloc[-30] *= 1.5  # two of three rise at the same hour
+    n3.iloc[-10] *= 1.5  # only one rises
+    c = confirm_neighbors({"a": n1, "b": n2, "c": n3}, idx)
+    assert c.iloc[-30] == 1.0 and c.iloc[-10] == 0.0
+    assert np.isnan(c.iloc[0])  # no history yet
+
+
+def test_confirm_weather_cold_tail_in_heating_regime():
+    from grid_sentinel.crosscheck import confirm_weather
+
+    t = seasonal_temperature()
+    t.loc["2024-01-20"] = -5.0  # an arctic day
+    c = confirm_weather(t)
+    assert (c.loc["2024-01-20"] == 1.0).all()
+    assert (c.loc["2024-01-10"] == 0.0).all()
+    assert (c.loc["2024-07-15"] == 0.0).all()  # warm but ordinary
