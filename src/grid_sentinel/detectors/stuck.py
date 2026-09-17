@@ -8,6 +8,7 @@ reading breaks the run.
 
 from __future__ import annotations
 
+import math
 from typing import Any
 
 from grid_sentinel.base import Detector
@@ -16,6 +17,7 @@ from grid_sentinel.types import Decision, DetectionResult
 
 class StuckValues(Detector):
     supports_streaming = True
+    handles_missing = True
 
     def __init__(self, min_run: int = 3):
         if min_run < 2:
@@ -29,6 +31,10 @@ class StuckValues(Detector):
 
     def update(self, timestamp: Any, value: float, **context: Any) -> Decision:
         x = float(value)
+        if math.isnan(x):  # a missing reading breaks the run
+            self._prev = None
+            self._run = 0
+            return Decision(timestamp, x, 0.0, float(self.min_run), False, "", float("nan"), {})
         if self._prev is not None and x == self._prev:
             self._run += 1
         else:

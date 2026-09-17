@@ -17,7 +17,7 @@ def test_stuck_nan_breaks_the_run_and_stream_equals_batch():
     batch = d.predict(v)
     assert list(batch.is_anomaly) == [False, False, False, False, False, True]
     d.reset()
-    stream = [d.update(i, x).is_anomaly if not np.isnan(x) else False for i, x in enumerate(v)]
+    stream = [d.update(i, x).is_anomaly for i, x in enumerate(v)]  # the detector handles the missing reading itself
     assert list(batch.is_anomaly) == stream
 
 

@@ -18,6 +18,7 @@ from grid_sentinel.types import REASON_DTYPE, Context, Decision, DetectionResult
 
 class Detector:
     supports_streaming: bool = False
+    handles_missing: bool = False  # when True, replay feeds NaN readings to update (to break runs, say)
 
     # ---- parameters -------------------------------------------------------------------------------
     @classmethod
@@ -96,7 +97,7 @@ class Detector:
         checks: dict[str, np.ndarray] = {}
         for i in range(n):
             ts = t[i] if t is not None else i
-            if np.isnan(v[i]):
+            if np.isnan(v[i]) and not self.handles_missing:
                 d = empty_decision(ts, v[i])
             else:
                 d = self.update(ts, v[i], **(ctx.at(i) if ctx is not None else {}))
