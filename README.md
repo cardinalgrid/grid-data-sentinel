@@ -8,6 +8,8 @@ The FERC and NERC reviews of recent winter storms record the largest day-ahead l
 
 ## Methods
 
+Detection and repair are separate steps. Every detector returns the series unchanged, with a score, a flag and, for the composites, the reason for each flag (`confirmed_by`) and for each withdrawn alarm (`extreme kept`). Nothing is modified until `repair` is called explicitly with those flags, and `repair` returns the corrected series together with an audit log that records, reading by reading, the original value, the new value, the method and the reason. Gaps longer than 48 hours are left open.
+
 | Detector | What it does | Origin |
 |---|---|---|
 | `RecursiveTEDA` | Streaming detector based on typicality and eccentricity data analytics: keeps a recursive mean and variance and flags a reading when its normalised eccentricity exceeds (m²+1)/2k. No window, no training, no distributional assumption. Runs on levels or on first differences; optional winsorised update (`robust=True`) so that a run of bad readings does not inflate the variance. | Angelov (2014); the maintainer's M.Sc. work on outlier detection in demand curves |
