@@ -1,0 +1,5 @@
+"""Detectors on the ``Detector`` contract."""
+
+from grid_sentinel.detectors.teda import TEDA
+
+__all__ = ["TEDA"]
