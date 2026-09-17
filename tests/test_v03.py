@@ -269,3 +269,19 @@ def test_sentinel_v3_keeps_shared_cold_peak_and_drops_lone_spike():
     assert {"above_expected", "check_profile", "check_neighbors", "check_weather"} <= set(res.columns)
     off = sentinel_v3(load, temperature_f=temp, neighbors=nb, extremes="off")
     assert off.loc[win, "is_anomaly"].any()  # without the rule the cold morning is a fault
+
+
+# ---- events ----
+
+
+def test_events_and_window():
+    from grid_sentinel.events import EVENTS, event_window
+
+    assert [e["name"] for e in EVENTS] == ["uri", "elliott", "gerri_heather", "january_2025"]
+    idx = pd.date_range("2024-01-01", "2024-01-31 23:00", freq="h")
+    s = pd.Series(100.0, index=idx)
+    s.loc["2024-01-15 07:00"] = 500.0
+    peak, win = event_window(s, "2024-01-12", "2024-01-17")
+    assert peak == pd.Timestamp("2024-01-15 07:00")
+    assert win[0] == pd.Timestamp("2024-01-13 19:00") and win[-1] == pd.Timestamp("2024-01-16 19:00")
+    assert len(win) == 73
