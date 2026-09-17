@@ -143,8 +143,8 @@ def sentinel_v3(
     neighbours (the BA's interchange partners rose at the same hour, each against its own recent normal)
     and the weather (the hour's temperature is in the BA's own seasonal tail for the heating or cooling
     regime). With two checks available the reading must fail both; with one, or none, the v0.2 decision
-    stands. Readings below the expected value, frozen runs and non-positive readings follow the v0.2
-    rules unchanged. ``extremes="off"`` returns the v0.2 result with the check columns attached.
+    stands. Readings below the expected value, frozen runs, non-positive readings and gross ratios (outside
+    1/3 to 3x of the expectation) follow the v0.2 rules unchanged. ``extremes="off"`` returns the v0.2 result with the check columns attached.
     The profile regime comes from the daily mean temperature when ``temperature_f`` is given.
     """
     from grid_sentinel.crosscheck import confirm_neighbors, confirm_weather, preserve_extremes
@@ -176,7 +176,9 @@ def sentinel_v3(
     named = (("profile", check_profile), ("neighbors", check_neighbors), ("weather", check_weather))
     used = [c for name, c in named if name in checks]
     before = out["is_anomaly"].to_numpy().copy()
-    hard = out["confirmed_by"].isin(["stuck", "non-positive"]).to_numpy()
+    # frozen runs, non-positive readings and gross ratios (outside 1/3 to 3x of the expectation) are faults
+    # whatever the neighbours or the weather say: no genuine extreme is ten times the expected load
+    hard = out["confirmed_by"].isin(["stuck", "non-positive", "gross ratio"]).to_numpy()
     flags = preserve_extremes(before, above & ~hard, used)
     out["is_anomaly"] = flags
     out.loc[before & ~flags, "confirmed_by"] = "extreme kept"

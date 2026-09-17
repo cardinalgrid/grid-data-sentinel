@@ -271,6 +271,18 @@ def test_sentinel_v3_keeps_shared_cold_peak_and_drops_lone_spike():
     assert off.loc[win, "is_anomaly"].any()  # without the rule the cold morning is a fault
 
 
+def test_sentinel_v3_keeps_unit_error_on_a_cold_day():
+    from grid_sentinel import sentinel_v3
+
+    load, temp, nb, win = synthetic_ba()
+    run = slice("2024-01-17 12:00", "2024-01-17 17:00")  # a x10 run on the same arctic day
+    load.loc[run] *= 10.0
+    res = sentinel_v3(load, temperature_f=temp, neighbors=nb)
+    assert res.loc[run, "is_anomaly"].all()
+    assert (res.loc[run, "confirmed_by"] == "gross ratio").all()
+    assert not res.loc[win, "is_anomaly"].any()  # the genuine morning is still kept
+
+
 # ---- events ----
 
 
@@ -316,7 +328,7 @@ def test_evaluate_window_counts():
     label = np.zeros(100, dtype=np.int8)
     label[20] = 1
     raw_bad = np.zeros(100, dtype=bool)
-    out = evaluate_window(res, idx[5:30], idx[10], label, raw_bad)
+    out = evaluate_window(res, res, idx[5:30], idx[10], label, raw_bad)
     assert out["flagged"] == 2 and out["peak_flagged"] is True and out["injected_in_window"] == 1
     assert out["recall_in_window"] == 1.0 and abs(out["flagged_share"] - 2 / 25) < 1e-9
     s = pd.Series(1000.0 + np.arange(100), index=idx)
