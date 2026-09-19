@@ -2,10 +2,10 @@ cff-version: 1.2.0
 message: "If you use this software or its results, please cite it as below."
 type: software
 title: "Grid Data Sentinel: anomaly detection and repair for load telemetry with recursive TEDA, sparse autoencoders and calendar-aware profiles"
-version: 0.2.0
-date-released: 2026-09-12
+version: 0.3.0
+date-released: 2026-09-19
 license: Apache-2.0
-doi: 10.5281/zenodo.22726014
+doi: 10.5281/zenodo.22726013
 identifiers:
   - type: doi
     value: 10.5281/zenodo.22726013
@@ -29,8 +29,10 @@ keywords:
 abstract: >
   Python package for detecting and repairing anomalous readings in electricity load series: a
   streaming recursive TEDA detector, a sparse window autoencoder, three reference detectors,
-  labelled anomaly injection, an audited repair step, and a benchmark on public EIA-930 hourly
-  demand.
+  a calendar-aware profile with a temperature regime, cross-checks of high readings against the
+  expected profile, the interchange neighbours and the local temperature so that genuine extremes
+  are kept, labelled anomaly injection, an audited repair step, a benchmark on public EIA-930
+  hourly demand and an evaluation on four winter storms.
 references:
   - type: article
     title: "Outlier Detection and Correction in Smart Grid Energy Demand Data Using Sparse Autoencoders"
