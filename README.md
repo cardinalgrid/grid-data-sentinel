@@ -191,7 +191,7 @@ for x in readings:
 | v0.1 | September 2026 | TEDA + autoencoder + rules, batch mode, benchmark on EIA-930 |
 | v0.2 | September 2026 | Calendar-aware profile and confirmation, interval table, equivalent-day repair, practice baselines, survey and gallery of real anomalies |
 | v0.3 | September 2026 | Temperature regime, neighbour and weather cross-checks, preservation of genuine extremes, evaluation on four winter events |
-| v0.4 | September 2026 | Estimator contract for every detector, numpy-only core, streaming composite with serialisable state, optional forgetting, feeder-loss fault (this release) |
+| v0.4 | September 2026 | Estimator contract for every detector, numpy-only core, streaming composite with serialisable state, optional forgetting, feeder-loss fault, hour-label alignment check between a forecast and its load (this release) |
 | v1.0 | December 2026 | Removal of the legacy functions, PyPI, documentation and examples on public data, better recall on dips and feeder loss |
 | v1.0 | December 2026 | Audit trail format, documentation, examples on public data, PyPI |
 

@@ -67,3 +67,7 @@ values_repaired, audit = Repairer().transform(values, timestamps, flags)
 ## pandas extra
 
 `pip install grid-data-sentinel[pandas]` adds `grid_sentinel.pandas` (`from_series`, `to_series`, `regularize`, `context_from`, `predict_series`), the public-data loaders (`data`, `weather`, `neighbors`, `stations`, `events`), the benchmark and the scripts. `grid_sentinel.legacy` holds the v0.3 functions with a deprecation warning; see `migration.md`.
+
+### Hour-label alignment (`grid_sentinel.alignment`)
+
+A forecast and the load it refers to can be published on different hour conventions (one labelled by hour beginning, the other by hour ending). `alignment_table(load, forecast, shifts=(-2, -1, 0, 1, 2), freq="YS")` gives, per period, the MAPE of the forecast against the load for each candidate shift, the best shift, the gain in points over the published alignment and the hours compared; hours in which the two differ by more than half of the load are dropped as reporting faults. `alignment_check(load, forecast, min_gain=0.3)` returns the periods in which a moved forecast beats the published one by at least `min_gain` points (empty when the labels agree). `change_point(load, forecast, shift)` gives the first day from which the moved forecast is better on seven consecutive days. The check says that the two series disagree on the hour label, not which one is wrong. On EIA-930, PJM's day-ahead forecast is stamped one hour earlier than its demand from February 2019 on (MAPE 3.4 to 3.9 % as published, 2.3 to 2.5 % moved by one hour).
