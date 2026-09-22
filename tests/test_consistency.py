@@ -1,7 +1,12 @@
 import numpy as np
 import pytest
 
-from grid_sentinel.consistency import day_is_plausible, forecast_faults, forecast_is_plausible, neighbour_spikes
+from grid_sentinel.consistency import (
+    day_is_plausible,
+    forecast_faults,
+    forecast_is_plausible,
+    neighbour_spikes,
+)
 
 
 def test_a_spike_is_flagged_and_a_ramp_is_not():
@@ -10,7 +15,7 @@ def test_a_spike_is_flagged_and_a_ramp_is_not():
     assert day_is_plausible(day)
     spiked = day.copy()
     spiked[22] = 4500.0
-    assert neighbour_spikes(spiked).tolist().index(True) == 22
+    assert neighbour_spikes(spiked).tolist() == [False] * 22 + [True, False]   # the neighbours of the spike stay clean
     assert not day_is_plausible(spiked)
     assert day_is_plausible(np.linspace(1000.0, 1800.0, 24))                  # 3.5 % an hour
     edge = day.copy()
@@ -20,6 +25,10 @@ def test_a_spike_is_flagged_and_a_ramp_is_not():
     with_gap[21] = np.nan                                                      # a missing neighbour is ignored
     assert neighbour_spikes(with_gap)[22]
     assert not neighbour_spikes(with_gap)[21]
+    plateau = day.copy()
+    plateau[22:] = 4500.0                                                      # a two-hour spike at the end of the day
+    assert neighbour_spikes(plateau)[22]                                       # the first hour of the plateau is the jump
+    assert not neighbour_spikes(plateau)[:22].any()                            # the hour before it stays clean
 
 
 def test_forecast_faults_cover_zeros_gaps_and_gross_misses():

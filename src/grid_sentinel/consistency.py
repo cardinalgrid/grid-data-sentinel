@@ -26,17 +26,27 @@ FORECAST_LIMIT = 0.5
 
 
 def neighbour_spikes(values, limit: float = SPIKE_LIMIT) -> np.ndarray:
-    """True at the positions whose value is more than ``limit`` (relative) away from the mean of their
-    neighbours; NaN values are neither spikes nor neighbours."""
+    """True at the positions whose value is more than ``limit`` (relative) away both from the mean of its
+    finite neighbours and from the median of the whole array. The first condition finds the jump; the second
+    keeps the hours next to a spike, and the two hours of a short plateau, from being dragged into the mask
+    (their neighbours' mean is pulled by the spike, but they sit at the day's level). NaN values are neither
+    spikes nor neighbours; the ends are judged against their single neighbour."""
     a = np.asarray(values, dtype=float)
     out = np.zeros(len(a), dtype=bool)
+    finite = a[np.isfinite(a)]
+    if len(finite) == 0:
+        return out
+    level = float(np.median(finite))
     for h in range(len(a)):
         if not np.isfinite(a[h]):
             continue
         nb = [a[k] for k in (h - 1, h + 1) if 0 <= k < len(a) and np.isfinite(a[k])]
-        if nb:
-            ref = float(np.mean(nb))
-            out[h] = ref > 0 and abs(a[h] - ref) / ref > limit
+        if not nb:
+            continue
+        ref = float(np.mean(nb))
+        far_from_neighbours = ref > 0 and abs(a[h] - ref) / ref > limit
+        far_from_level = level > 0 and abs(a[h] - level) / level > limit
+        out[h] = far_from_neighbours and far_from_level
     return out
 
 

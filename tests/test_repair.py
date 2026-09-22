@@ -1,8 +1,8 @@
 import numpy as np
 import pandas as pd
-from grid_sentinel.repairer import Audit, Repairer, intervals_from_mask, summarize_intervals
 
 from grid_sentinel.repair import repair as legacy_repair  # v0.3 function
+from grid_sentinel.repairer import Audit, Repairer, intervals_from_mask, summarize_intervals
 
 
 def gaps(synthetic_year):
