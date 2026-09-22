@@ -14,6 +14,7 @@ from typing import Any
 
 from grid_sentinel.base import Detector
 from grid_sentinel.calendar_us import day_types
+from grid_sentinel.consistency import day_is_plausible, forecast_is_plausible
 from grid_sentinel.detectors import (
     IQR,
     TEDA,
@@ -51,7 +52,9 @@ __all__ = [
     "SparseAutoencoder",
     "StuckValues",
     "__version__",
+    "day_is_plausible",
     "day_types",
+    "forecast_is_plausible",
     "intervals_from_mask",
     "score_labels",
     "state_from_json",
