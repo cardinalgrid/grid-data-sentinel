@@ -41,12 +41,17 @@ def read_isd_lite(path: Path) -> pd.DataFrame:
 
 
 def fetch_isd_lite(usaf: str, wban: str, year: int, isd_dir: Path) -> Path | None:
-    """Download one station-year into ``isd_dir`` unless cached; ``None`` when the file does not exist."""
+    """Download one station-year into ``isd_dir`` unless cached; ``None`` when the file does not exist or the
+    archive cannot be reached after three attempts (the caller treats both as no observations)."""
     dest = Path(isd_dir) / f"{usaf}-{wban}-{year}.gz"
     if dest.exists():
         return dest
     for attempt in range(3):
-        r = requests.get(ISD_URL.format(year=year, usaf=usaf, wban=wban), timeout=120)
+        try:
+            r = requests.get(ISD_URL.format(year=year, usaf=usaf, wban=wban), timeout=120)
+        except requests.RequestException:          # the archive is unreachable: try again, then give up like a missing file
+            time.sleep(3 * (attempt + 1))
+            continue
         if r.status_code == 200:
             dest.parent.mkdir(parents=True, exist_ok=True)
             tmp = dest.with_suffix(".part")
