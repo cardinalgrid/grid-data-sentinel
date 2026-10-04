@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.4.0 (2026-09-17)
+## 0.4.0 (2026-10-04)
 
 The interface release: the methods do not change, the way of using them does.
 
@@ -13,8 +13,11 @@ Added
 - Batch equals stream: for every streaming detector `predict` is the replay of `update`, and the tests assert equal flags and scores; a state saved mid-series and restored continues with the same decisions.
 - Injection: opt-in `feeder_loss` fault (a run of 6 to 72 readings at 70% to 95% of the true load). Benchmark: `--feeder-loss`, `--with-legacy` (the v0.3 functions side by side), variant `sentinel_v3_forgetting` (half-life 14 days).
 - `docs/api.md`, `docs/migration.md`.
+- `grid_sentinel.consistency` (numpy only): `neighbour_spikes`, an hour more than 40% away from the mean of its two neighbours and from the day's level (a system load does not jump that far for one hour and back), and `forecast_faults`, a published forecast that is missing, non-positive or more than half away from the outcome at some hour; `day_is_plausible` and `forecast_is_plausible` reduce them to a verdict for the day.
+- `grid_sentinel.alignment` (`[pandas]` extra): `alignment_table` and `alignment_check` measure, per year, whether a forecast moved by one or two hours matches its load better than as published, the signature of a forecast and a load stamped on different hour conventions. It says the two series disagree on the hour label, not which one is wrong.
 
 Changed
+- `fetch_isd_lite` retries an unreachable archive and then treats the year as missing instead of failing.
 - The v0.3 functions (`sentinel`, `sentinel_v2`, `sentinel_v3`, `stuck_values`, `profile_residual`, the baselines, `repair`, `RecursiveTEDA`, ...) live in `grid_sentinel.legacy` with a `DeprecationWarning`, unchanged in behaviour, and are still reachable as `grid_sentinel.<name>`; removed in 1.0.
 - `StuckValues` is causal: a run is flagged from its `min_run`-th identical reading on; a missing reading breaks the run.
 - `Sentinel` looks at the reading and the previous one when confirming a base alarm against the profile (v0.3 also looked at the next one); missing readings are unflagged; the weather cross-check uses yesterday's mean temperature for the regime (v0.3 used the same day's). On PJM 2024 the causal composite flags nothing that v0.3 did not, and v0.3 flags at most 0.5% of readings more, all explained by the two rules above.
