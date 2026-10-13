@@ -196,16 +196,24 @@ def run(
     tolerance: int = 1,
     context: Callable[[str, int], dict] | None = None,
     types: tuple[str, ...] = TYPES,
+    per_series_seed: bool = False,
 ) -> pd.DataFrame:
+    """Inject, run every detector and score each series.
+
+    With ``per_series_seed`` each balancing authority gets its own injection (seed ``1000 * seed + 37 * i + year``,
+    ``i`` its position in ``bas``); otherwise every authority gets the faults at the same hours (seed ``seed + year``),
+    the scheme of the published benchmark.
+    """
     detectors = detectors or default_detectors()
     rows = []
-    for ba in bas:
+    for bi, ba in enumerate(bas):
         for year in years:
             s = load_series_local(tidy_dir, ba, year)
             s = s[s > 0]
             if len(s) < 24 * 30:
                 continue
-            inj = inject_anomalies(s, rate=rate, types=types, seed=seed + year)
+            inj_seed = 1000 * seed + 37 * bi + year if per_series_seed else seed + year
+            inj = inject_anomalies(s, rate=rate, types=types, seed=inj_seed)
             raw_bad = raw_fault_mask(inj["clean"].to_numpy())
             ctx = context(ba, year) if context else {}
             for name, fn in detectors.items():

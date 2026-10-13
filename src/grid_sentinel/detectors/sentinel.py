@@ -28,6 +28,8 @@ from grid_sentinel.detectors.teda import TEDA
 from grid_sentinel.types import Decision, DetectionResult, as_series
 
 CHECK_NAMES = ("profile", "neighbors", "weather")
+# reasons that no real demand can produce: with exclude_faults="gross" only these are kept out of the TEDA statistics
+GROSS_REASONS = ("non_positive", "gross_ratio", "stuck")
 
 
 class Sentinel(Detector):
@@ -49,6 +51,8 @@ class Sentinel(Detector):
         neighbor_pct: float = 95.0,
         half_life_hours: float | None = None,
         robust: bool = False,
+        exclude_faults: bool | str = False,
+        exclude_from: str = "both",
     ):
         if extremes not in ("preserve", "off"):
             raise ValueError("extremes must be 'preserve' or 'off'")
@@ -68,6 +72,14 @@ class Sentinel(Detector):
         self.neighbor_pct = float(neighbor_pct)
         self.half_life_hours = half_life_hours
         self.robust = bool(robust)
+        if exclude_faults is True:
+            exclude_faults = "all"
+        if exclude_faults not in (False, None, "all", "gross"):
+            raise ValueError("exclude_faults must be False, True, 'all' or 'gross'")
+        if exclude_from not in ("both", "level", "diff"):
+            raise ValueError("exclude_from must be 'both', 'level' or 'diff'")
+        self.exclude_faults = exclude_faults or False
+        self.exclude_from = exclude_from
         self.reset()
 
     def reset(self) -> None:
@@ -96,6 +108,7 @@ class Sentinel(Detector):
             self._prev_implausible = False
             return Decision(timestamp, x, 0.0, 1.0, False, "", float("nan"), checks)
 
+        before = (self._level.get_state(), self._diff.get_state()) if self.exclude_faults else None
         lvl = self._level.update(timestamp, x)
         dif = self._diff.update(timestamp, x)
         diff_flag = dif.is_anomaly and not self._prev_diff_raw  # the reading after a difference alarm is the return to normal
@@ -135,6 +148,18 @@ class Sentinel(Detector):
             used = [checks[name] for name in CHECK_NAMES if name in self.cross_checks]
             if above and not preserve_one(True, True, used):
                 flag, reason = False, "extreme_kept"
+        excluded = flag and (self.exclude_faults == "all" or reason in GROSS_REASONS)
+        if before is not None and excluded:
+            # a condemned reading does not teach the eccentricity detectors: their statistics go back to what they
+            # were, and the next difference is taken from the expectation (or the last good reading), so that the
+            # return to normal is not scored as a second jump
+            lvl_state, dif_state = before
+            if self.exclude_from in ("both", "level"):
+                self._level.set_state(lvl_state)
+            if self.exclude_from in ("both", "diff"):
+                if math.isfinite(expected) and expected > 0:
+                    dif_state = {**dif_state, "prev": expected}
+                self._diff.set_state(dif_state)
         return Decision(timestamp, x, float(score), 1.0, bool(flag), reason, expected, checks)
 
     # ---- series ------------------------------------------------------------------------------------

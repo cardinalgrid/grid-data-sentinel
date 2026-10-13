@@ -165,11 +165,20 @@ def main() -> int:
     ap.add_argument("--bas", nargs="*", default=None, help="subset of BAs (default: all with a station)")
     ap.add_argument("--events", nargs="*", default=None, help="subset of events (default: all four)")
     ap.add_argument("--resume", action="store_true", help="skip (event, BA) pairs already in by_ba.csv")
+    ap.add_argument("--variants", default=None,
+                    help="JSON name -> Sentinel keyword arguments: run only sentinel_v3 and these, and leave the docs alone")
     a = ap.parse_args()
     a.out.mkdir(parents=True, exist_ok=True)
     warnings.filterwarnings("ignore")
     ctx_fn = make_context(a.tidy, a.isd, a.neighbors)
     dets = {k: v for k, v in default_detectors().items() if k in DETECTORS}
+    if a.variants:
+        from grid_sentinel.benchmark import on_contract
+        from grid_sentinel.detectors import Sentinel
+
+        dets = {"sentinel_v3": dets["sentinel_v3"]}
+        for name, kw in json.loads(a.variants).items():
+            dets[f"sentinel_v3_{name}"] = on_contract(lambda kw=kw: Sentinel(**kw))
     by_ba = a.out / "by_ba.csv"
     done: set[tuple[str, str]] = set()
     if a.resume and by_ba.exists():
@@ -221,8 +230,9 @@ def main() -> int:
                                                  if c not in ("event", "detector", "Index")} for r in summ.itertuples()},
     }
     (a.out / "summary.json").write_text(json.dumps(meta, indent=2), encoding="utf-8")
-    make_figures(summ, a.out)
-    write_docs(summ, meta, Path("docs/storms.md"))
+    if not a.variants:
+        make_figures(summ, a.out)
+        write_docs(summ, meta, Path("docs/storms.md"))
     print(summ.round(3).to_string())
     return 0
 

@@ -95,3 +95,32 @@ def test_sentinel_matches_v03_on_pjm_2024_up_to_declared_differences():
     assert extra.mean() < 0.005
     assert set(old["confirmed_by"].to_numpy()[extra]) <= {"stuck", "profile"}
     assert (new.reason == "extreme_kept").sum() >= (old["confirmed_by"].to_numpy() == "extreme kept").sum() * 0.8
+
+
+def test_sentinel_exclusion_options(arctic_fixture):
+    load, t, temp, nb, _win, _spike = arctic_fixture
+    ctx = context_from(temp, t, nb)
+    with pytest.raises(ValueError):
+        Sentinel(exclude_faults="some")
+    with pytest.raises(ValueError):
+        Sentinel(exclude_faults="all", exclude_from="neither")
+    assert Sentinel(exclude_faults=True).exclude_faults == "all"
+    load2 = load.copy()
+    run = (t >= np.datetime64("2024-01-10T12", "h")) & (t <= np.datetime64("2024-01-10T17", "h"))
+    load2[run] = 0.0
+    d = Sentinel(exclude_faults="gross", exclude_from="diff")
+    aligned = ctx.aligned(t)
+    i0 = int(np.flatnonzero(run)[0])
+    for i in range(i0):
+        d.update(t[i], load2[i], **aligned.at(i))
+    before = d.get_state()["diff"]
+    for i in range(i0, i0 + int(run.sum())):
+        assert d.update(t[i], load2[i], **aligned.at(i)).reason == "non_positive"
+    after = d.get_state()["diff"]
+    # the zeros do not move the difference statistics; only the reference reading is the expectation
+    assert {k: v for k, v in after.items() if k != "prev"} == {k: v for k, v in before.items() if k != "prev"}
+    # streaming and batch agree with the option on
+    batch = Sentinel(exclude_faults="all", exclude_from="diff").predict(load2, t, ctx)
+    e = Sentinel(exclude_faults="all", exclude_from="diff")
+    stream = [e.update(t[i], load2[i], **aligned.at(i)).is_anomaly for i in range(len(t))]
+    assert np.array_equal(batch.is_anomaly, np.array(stream))
