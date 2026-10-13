@@ -110,7 +110,7 @@ What the table says:
 - **The autoencoder has the best recall on dips but misses frozen values**, which no reconstruction method sees: a frozen value is a perfectly reconstructable reading. The rule catches them all.
 - **Reference detectors fail in the expected ways.** The global IQR rule flags every legitimate winter and summer peak; the Hampel filter and rolling z-score are blind to unit-error runs longer than their window; the modified z-score and the 15% rule, common in practice, sit in the middle.
 - **The profile alone is not a detector.** With precision 0.23 it fires on every genuine departure from the calendar, first cold mornings included. As a confirmation of the level and difference detectors it is what lifts v0.2 above v0.1.
-- **The injection scheme matters.** The table follows the published scheme, in which every BA gets its faults at the same hours, so one drawn fault counts ten times. With a different injection per BA (`--per-series-seed`, `results/per_series/`) the v0.3/v0.4 composite catches 75% of spikes rather than 95%; PER_SERIES_SENTENCE
+- **The injection scheme matters.** The table follows the published scheme, in which every BA gets its faults at the same hours, so one drawn fault counts ten times. With a different injection per BA (`--per-series-seed`, `results/per_series/`) the v0.3/v0.4 composite catches 75% of spikes rather than 95%; on that benchmark the v0.5 composite reaches adjusted precision 0.964 and F1 0.964 against 0.923 and 0.940, with spikes at 82% and dips at 100%.
 
 ### Partial loss of telemetry
 
