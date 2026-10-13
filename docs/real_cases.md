@@ -102,7 +102,7 @@ Flags in the window: v0.1 composite 1, v0.2 composite 1. Intervals found by v0.2
 
 ### SWPP, January 2026: 202 hours frozen at 31,226 MW
 
-Southwest Power Pool has 82 frozen runs totalling 2,837 hours in the record; this one lasts more than eight days at the level of a whole RTO.
+Southwest Power Pool has 82 frozen runs totalling 2,919 hours in the record; this one lasts more than eight days at the level of a whole RTO.
 
 Flags in the window: v0.1 composite 243, v0.2 composite 243. Intervals found by v0.2: 2 up to 1 day, 1 up to 1 month. Repairs: {'left open': 201, 'equivalent days': 42}.
 

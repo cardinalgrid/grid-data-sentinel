@@ -22,7 +22,7 @@ import pandas as pd
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
-from grid_sentinel import (
+from grid_sentinel.legacy import (  # the pandas functions of v0.3, which the figures of this page were made with
     intervals_from_mask,
     repair,
     sentinel,
@@ -49,7 +49,7 @@ CASES = [
     ("FPL", 2015, "2015-12-07", "2015-12-13", "FPL, December 2015: readings around 1,000 MW",
      "A partial report: about one twelfth of the normal level, most likely one zone of the system instead of the whole."),
     ("SWPP", 2026, "2026-01-03", "2026-01-18", "SWPP, January 2026: 202 hours frozen at 31,226 MW",
-     "Southwest Power Pool has 82 frozen runs totalling 2,837 hours in the record; this one lasts more than eight days at the level of a whole RTO."),
+     "Southwest Power Pool has {frozen_runs} frozen runs totalling {frozen_hours:,} hours in the record; this one lasts more than eight days at the level of a whole RTO."),
     ("LDWP", 2018, "2018-04-15", "2018-04-28", "LDWP, April 2018: 147 hours frozen at 2,866 MW",
      "Los Angeles reported the same megawatt value for six days."),
     ("TVA", 2021, "2021-02-12", "2021-02-22", "TVA, Winter Storm Uri, February 2021: genuine extremes",
@@ -171,7 +171,11 @@ def main() -> int:
     lines += ["", totals, "", "## Gallery", ""]
 
     summary_rows = []
+    # case texts quote the survey with placeholders, so that a case and the table never disagree when the record grows
+    by_ba = sv.set_index("ba")
     for ba, year, start, end, title, what in CASES:
+        if "{" in what:
+            what = what.format(**{k: int(v) for k, v in by_ba.loc[ba].items() if k != "mean_mw"})
         years = sorted({year, int(start[:4]), int(end[:4])})
         s = pd.concat([load_series_local(tidy, ba, y) for y in range(min(years) - 1, max(years) + 1)])
         s = s[~s.index.duplicated()]
