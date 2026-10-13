@@ -41,12 +41,14 @@ def composite_variants(variants: dict) -> dict:
     return out
 
 
-def detectors(variants: dict) -> dict:
-    base = on_contract(Sentinel)
-    out = {"sentinel_v3": base}
+def detectors(variants: dict, base_kw: dict | None = None) -> dict:
+    base = on_contract(lambda: Sentinel(**(base_kw or {})))
+    out = {"sentinel_v3": on_contract(Sentinel)}
+    if base_kw:
+        out["sentinel_base"] = base
     for name, kw in variants.items():
         out[f"feeder_{name}"] = on_contract(lambda kw=kw: FeederLoss(**kw))
-        out[f"sentinel_v3+feeder_{name}"] = union(base, on_contract(lambda kw=kw: FeederLoss(**kw)))
+        out[f"{'sentinel_base' if base_kw else 'sentinel_v3'}+feeder_{name}"] = union(base, on_contract(lambda kw=kw: FeederLoss(**kw)))
     return out
 
 
@@ -59,6 +61,7 @@ def main(argv=None) -> int:
     ap.add_argument("--years", nargs="+", type=int, default=[2023, 2024])
     ap.add_argument("--variants", default='{"default": {}}', help="JSON: name -> FeederLoss keyword arguments")
     ap.add_argument("--front", choices=["feeder", "composite"], default="feeder")
+    ap.add_argument("--base", default="{}", help="JSON: Sentinel keyword arguments of the composite the feeder joins")
     ap.add_argument("--only", nargs="*", default=None, help="benchmarks to run: standard feeder feeder_dense")
     ap.add_argument("--per-series-seed", action="store_true", help="a different injection for each balancing authority")
     ap.add_argument("--dense-rate", type=float, default=0.02, help="rate of the feeder-loss-only benchmark")
@@ -67,7 +70,10 @@ def main(argv=None) -> int:
     out = Path(a.out)
     out.mkdir(parents=True, exist_ok=True)
     ctx = make_context(Path(a.tidy), Path(a.isd), Path(a.neighbors))
-    dets = (detectors if a.front == "feeder" else composite_variants)(json.loads(a.variants))
+    if a.front == "feeder":
+        dets = detectors(json.loads(a.variants), json.loads(a.base))
+    else:
+        dets = composite_variants(json.loads(a.variants))
     benches = (("standard", TYPES, 0.005), ("feeder", ALL_TYPES, 0.005), ("feeder_dense", ("feeder_loss",), a.dense_rate))
     for label, types, rate in benches:
         if a.only and label not in a.only:

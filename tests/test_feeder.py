@@ -65,5 +65,7 @@ def test_loss_next_to_a_holiday_is_not_confirmed():
     i0, n = 24 * 50 + 9, 10  # Tuesday 21 February 2023, the day after Presidents' Day
     v = v.copy()
     v[i0:i0 + n] *= 0.92
-    assert not FeederLoss().predict(v, t).is_anomaly.any()
-    assert FeederLoss(skip_holidays=False).predict(v, t).is_anomaly[i0:i0 + n].all()
+    assert not FeederLoss(skip_holidays="all").predict(v, t).is_anomaly.any()
+    assert FeederLoss().predict(v, t).is_anomaly[i0:i0 + n].all()  # by default only the Christmas week is skipped
+    xmas = {str(d) for d in holiday_days([2023], christmas_only=True)}
+    assert "2023-12-27" in xmas and "2023-02-20" not in xmas

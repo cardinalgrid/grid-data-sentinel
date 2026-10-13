@@ -1,9 +1,12 @@
 """Partial loss of load telemetry: a feeder or a metering point drops out of the total and comes back.
 
 The signature is a step down, a plateau below the expected level, and a step back up of about the same size.
-A real change of demand rarely looks like that: weather moves the load gradually. Holidays do make that shape
-and the profile does not know them, so a loss that starts or ends near a U.S. federal holiday (or between
-24 December and 1 January) is not confirmed; nor is one whose step a neighbouring authority makes in the same hour. The steps are measured on the hour-to-hour change of the log load minus the hour-to-hour change of
+A real change of demand rarely looks like that: weather moves the load gradually. Holidays and the days around
+them can make that shape (the profile maps the holiday itself to a weekend day type, not the bridge days), so a
+loss that starts or ends between 24 December and 2 January is not confirmed (``skip_holidays="all"`` widens this to
+the day before and after every U.S. federal holiday);
+nor is one whose step a neighbouring authority makes in the same hour, nor one with an edge on a midnight where
+the day type changes, where the profile's expectation jumps from one day group's level to another's. The steps are measured on the hour-to-hour change of the log load minus the hour-to-hour change of
 the log expected profile (``ProfileResidual``'s expectation): the shape of the day cancels out and what is left
 is small (about 1 % at a large balancing authority), so a drop of a few percent stands out. Its spread is
 estimated causally, once a day, as the scaled median absolute deviation of the previous ``scale_days`` days.
@@ -24,6 +27,7 @@ from typing import Any
 import numpy as np
 
 from grid_sentinel.base import Detector
+from grid_sentinel.calendar_us import day_types
 from grid_sentinel.detectors.profile import ProfileResidual
 from grid_sentinel.types import REASON_DTYPE, Context, DetectionResult, as_series
 
@@ -55,11 +59,15 @@ def _nth_weekday(year: int, month: int, weekday: int, n: int) -> np.datetime64:
     return hits[n] if n < 0 else hits[n - 1]
 
 
-def holiday_days(years) -> np.ndarray:
+def holiday_days(years, christmas_only: bool = False) -> np.ndarray:
     """U.S. federal holidays (observed on the date itself) of the given years, with the day before and after each,
-    and the days from 24 December to 1 January."""
+    and the days from 24 December to 1 January; with ``christmas_only``, only the latter."""
     out = []
     for y in sorted(set(int(v) for v in years)):
+        if christmas_only:
+            out.extend(np.datetime64(f"{y:04d}-12-24") + np.arange(9))
+            out.append(np.datetime64(f"{y:04d}-01-01"))
+            continue
         fixed = [np.datetime64(f"{y:04d}-{md}") for md in ("01-01", "06-19", "07-04", "11-11", "12-25")]
         moving = [_nth_weekday(y, 1, 0, 3), _nth_weekday(y, 2, 0, 3), _nth_weekday(y, 5, 0, -1), _nth_weekday(y, 9, 0, 1),
                   _nth_weekday(y, 10, 0, 2), _nth_weekday(y, 11, 3, 4)]
@@ -91,19 +99,21 @@ class FeederLoss(Detector):
     def __init__(
         self,
         k: float = 5.0,
-        min_drop: float = 0.03,
+        min_drop: float = 0.05,
         max_drop: float = 0.5,
         min_len: int = 3,
         max_len: int = 96,
         match_tol: float = 0.5,
         drift_tol: float = 0.5,
         scale_days: int = 28,
-        regime: str | None = "temperature",
+        regime: str | None = None,
         discount: str = "full",
         skip_day_aligned: bool = True,
         max_gap: int = 3,
-        neighbor_veto: float | None = 4.0,
-        skip_holidays: bool = True,
+        neighbor_veto: float | None = 6.0,
+        skip_holidays: bool | str = "christmas",
+        confirm: str = "plateau",
+        plateau_share: float = 0.8,
     ):
         self.k = float(k)
         self.min_drop = float(min_drop)
@@ -120,7 +130,13 @@ class FeederLoss(Detector):
         self.skip_day_aligned = bool(skip_day_aligned)
         self.max_gap = int(max_gap)
         self.neighbor_veto = neighbor_veto
-        self.skip_holidays = bool(skip_holidays)
+        if skip_holidays not in (True, False, "all", "christmas"):
+            raise ValueError("skip_holidays must be True, False, 'all' or 'christmas'")
+        self.skip_holidays = "all" if skip_holidays is True else skip_holidays
+        if confirm not in ("drift", "plateau"):
+            raise ValueError("confirm must be 'drift' or 'plateau'")
+        self.confirm = confirm
+        self.plateau_share = float(plateau_share)
         self.reset()
 
     def steps(self, values: Any, timestamps: Any = None, context: Context | None = None) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
@@ -153,8 +169,6 @@ class FeederLoss(Detector):
         v, ts = as_series(values, timestamps)
         n = len(v)
         u, scale, expected = self.steps(v, ts, context)
-        # the profile resets its expectation at each midnight, and a day group whose level lags (the weekend after a
-        # level change) makes a step pair on two midnights; a loss whose both edges fall on a midnight is skipped
         # a step that a neighbouring authority makes in the same hour is weather or a wide event, not telemetry
         nb_z = []
         if self.neighbor_veto is not None and context is not None and context.neighbors and ts is not None:
@@ -169,13 +183,39 @@ class FeederLoss(Detector):
 
         if self.skip_holidays and ts is not None and n:
             day = np.asarray(ts).astype("datetime64[D]")
-            near_holiday = np.isin(day, holiday_days(np.unique(day.astype("datetime64[Y]").astype(int) + 1970)))
+            years = np.unique(day.astype("datetime64[Y]").astype(int) + 1970)
+            near_holiday = np.isin(day, holiday_days(years, christmas_only=self.skip_holidays == "christmas"))
         else:
             near_holiday = np.zeros(n, bool)
+        # the profile resets its expectation at each midnight, and a day group whose level lags (the weekend after a
+        # level change) makes a step pair on two midnights; a loss whose both edges fall on a midnight is skipped
         midnight = (np.asarray(ts).astype("datetime64[h]").astype(np.int64) % 24 == 0) if ts is not None else np.zeros(n, bool)
+        group_change = np.zeros(n, bool)
+        if ts is not None and n > 1:
+            dt = day_types(ts)
+            group_change[1:] = midnight[1:] & (dt[1:] != dt[:-1])
         flag = np.zeros(n, dtype=bool)
         score = np.zeros(n)
         reason = np.array([""] * n, dtype=object)
+        with np.errstate(divide="ignore", invalid="ignore"):
+            resid = np.where((v > 0) & (expected > 0), np.log(v) - np.log(expected), np.nan)
+
+        def plateau(t0: int, t1: int, step: float) -> bool:
+            # the readings between the steps sit below the line joining the residual before and after, by about
+            # the step: robust to a profile that wanders over a long plateau, which a summed drift is not
+            pre = resid[max(0, t0 - 6):t0]
+            post = resid[t1:t1 + 6]
+            if not (np.isfinite(pre).any() and np.isfinite(post).any()):
+                return False
+            base = np.linspace(np.nanmedian(pre), np.nanmedian(post), t1 - t0)
+            depth = resid[t0:t1] - base
+            depth = depth[np.isfinite(depth)]
+            if len(depth) < 0.5 * (t1 - t0):
+                return False
+            med = float(np.median(depth))
+            low = float(np.mean(depth < -0.5 * step))
+            return low >= self.plateau_share and -(1.0 + self.match_tol) * step <= med <= -(1.0 - self.match_tol) * step
+
         floor_down = math.log(1.0 - self.max_drop)
         min_step = -math.log(1.0 - self.min_drop)
         t = 1
@@ -195,14 +235,21 @@ class FeederLoss(Detector):
                     if gap > self.max_gap:
                         break
                     continue
-                if t1 - t >= self.min_len and u1 > max(self.k * scale[t1], min_step) and abs(u1 + ut) <= self.match_tol * abs(ut):
+                matched = (t1 - t >= self.min_len and u1 > max(self.k * scale[t1], min_step)
+                           and abs(u1 + ut) <= self.match_tol * abs(ut))
+                if self.confirm == "plateau":
+                    if matched and plateau(t, t1, abs(ut)):
+                        found = t1
+                        break
+                    continue
+                if matched:
                     if abs(drift) <= self.drift_tol * abs(ut):
                         found = t1
                     break
                 drift += u1
                 if abs(drift) > abs(ut) * (1.0 + self.drift_tol):
                     break
-            if found > 0 and self.skip_day_aligned and midnight[t] and midnight[found]:
+            if found > 0 and self.skip_day_aligned and ((midnight[t] and midnight[found]) or group_change[t] or group_change[found]):
                 found = -1
             if found > 0 and (near_holiday[t] or near_holiday[found]):
                 found = -1
