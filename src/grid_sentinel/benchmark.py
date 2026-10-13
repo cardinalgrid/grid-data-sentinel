@@ -248,7 +248,7 @@ def summarise(results: pd.DataFrame) -> pd.DataFrame:
 
 
 def write_results(results: pd.DataFrame, out_dir: Path, tidy_dir: Path, bas, years, rate, seed,
-                  types: tuple[str, ...] = TYPES) -> None:
+                  types: tuple[str, ...] = TYPES, per_series_seed: bool = False) -> None:
     out_dir.mkdir(parents=True, exist_ok=True)
     results.to_csv(out_dir / "benchmark_by_series.csv", index=False)
     summary = summarise(results)
@@ -260,6 +260,7 @@ def write_results(results: pd.DataFrame, out_dir: Path, tidy_dir: Path, bas, yea
         "years": list(years),
         "injection_rate": rate,
         "seed": seed,
+        "seed_scheme": "1000 * seed + 37 * i + year, one injection per BA" if per_series_seed else "seed + year, same hours for every BA",
         "tolerance": 1,
         "types": list(types),
         "n_series": int(results.groupby(["ba", "year"]).ngroups),

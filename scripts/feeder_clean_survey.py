@@ -24,14 +24,23 @@ def main(argv=None) -> int:
     ap.add_argument("--neighbors", default="docs/neighbors.csv")
     ap.add_argument("--years", nargs="+", type=int, default=[2023, 2024])
     ap.add_argument("--kw", default="{}")
+    ap.add_argument("--all-bas", action="store_true", help="every BA with a weather station, not only the benchmark ten")
     ap.add_argument("--out", required=True)
     a = ap.parse_args(argv)
     ctx_of = make_context(Path(a.tidy), Path(a.isd), Path(a.neighbors))
     rows = []
-    for ba in DEFAULT_BAS:
+    from grid_sentinel.stations import BA_STATION
+
+    for ba in (sorted(BA_STATION) if a.all_bas else DEFAULT_BAS):
         for year in a.years:
-            s = load_series_local(Path(a.tidy), ba, year)
+            try:
+                s = load_series_local(Path(a.tidy), ba, year)
+            except Exception as e:  # noqa: BLE001
+                print(ba, year, "skipped", e, flush=True)
+                continue
             s = s[s > 0]
+            if len(s) < 24 * 60:
+                continue
             reg = regularize(s)
             v, t = from_series(reg)
             det = FeederLoss(**json.loads(a.kw))

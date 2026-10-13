@@ -74,11 +74,13 @@ def _benchmark(args: argparse.Namespace) -> int:
         context=context,
         types=types,
         detectors=detectors,
+        per_series_seed=args.per_series_seed,
     )
     if results.empty:
         print("no series found; check --tidy, --bas and --years", file=sys.stderr)
         return 1
-    write_results(results, Path(args.out), Path(args.tidy), args.bas, args.years, args.rate, args.seed, types=types)
+    write_results(results, Path(args.out), Path(args.tidy), args.bas, args.years, args.rate, args.seed, types=types,
+                  per_series_seed=args.per_series_seed)
     print(summarise(results).round(3).to_string())
     return 0
 
@@ -107,6 +109,8 @@ def main(argv: list[str] | None = None) -> int:
     b.add_argument("--neighbors", default="docs/neighbors.csv", help="neighbour table (see scripts/make_neighbors.py)")
     b.add_argument("--feeder-loss", action="store_true", help="add the partial feeder-loss fault to the injection")
     b.add_argument("--with-legacy", action="store_true", help="also run the v0.3 functions, for comparison")
+    b.add_argument("--per-series-seed", action="store_true",
+                   help="draw a different injection for each BA (default: the same hours for every BA)")
     b.add_argument("--out", default="results")
     b.set_defaults(func=_benchmark)
 
