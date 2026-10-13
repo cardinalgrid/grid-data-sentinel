@@ -68,6 +68,7 @@ class Sentinel(Detector):
         exclude_from: str = "diff",
         jump_guard: float | None = None,
         keep_built: float | None = 0.5,
+        jump_guard_share: float = 0.5,
     ):
         if extremes not in ("preserve", "off"):
             raise ValueError("extremes must be 'preserve' or 'off'")
@@ -96,6 +97,7 @@ class Sentinel(Detector):
         self.exclude_faults = exclude_faults or False
         self.exclude_from = exclude_from
         self.jump_guard = jump_guard
+        self.jump_guard_share = float(jump_guard_share)
         self.keep_built = keep_built
         self.reset()
 
@@ -115,6 +117,8 @@ class Sentinel(Detector):
         self._prev_diff_raw = False
         self._prev_implausible = False
         self._prev_ratio = float("nan")
+        self._prev_x = float("nan")
+        self._prev_nb: dict[str, float] = {}
 
     # ---- one reading -------------------------------------------------------------------------------
     def update(self, timestamp: Any, value: float, temperature_f: float = float("nan"),
@@ -123,6 +127,18 @@ class Sentinel(Detector):
         checks: dict[str, float] = {}
         if "neighbors" in self.cross_checks:
             checks["neighbors"] = self._neighbors.update(timestamp, neighbors)
+        # the median hour-to-hour change of the neighbours, for the jump guard: a step they make too is not a lone jump
+        nb_step = float("nan")
+        if neighbors:
+            steps = [neighbors[k] / self._prev_nb[k] - 1.0 for k in neighbors
+                     if k in self._prev_nb and self._prev_nb[k] > 0 and math.isfinite(neighbors[k]) and neighbors[k] > 0]
+            if steps:
+                steps.sort()
+                m = len(steps) // 2
+                nb_step = steps[m] if len(steps) % 2 else 0.5 * (steps[m - 1] + steps[m])
+            self._prev_nb = {k: float(v) for k, v in neighbors.items() if math.isfinite(v)}
+        else:
+            self._prev_nb = {}
         if "weather" in self.cross_checks:
             checks["weather"] = self._weather.update(timestamp, temperature_f)
         if math.isnan(x):
@@ -131,6 +147,7 @@ class Sentinel(Detector):
             self._prev_diff_raw = False
             self._prev_implausible = False
             self._prev_ratio = float("nan")
+            self._prev_x = float("nan")
             return Decision(timestamp, x, 0.0, 1.0, False, "", float("nan"), checks)
 
         before = (self._level.get_state(), self._diff.get_state()) if self.exclude_faults else None
@@ -173,8 +190,10 @@ class Sentinel(Detector):
             used = [checks[name] for name in CHECK_NAMES if name in self.cross_checks]
             # a genuine extreme builds over hours; a reading far above the expectation whose predecessor was near it
             # is a lone jump, and the cross-checks (which see the weather, not the jump) do not keep it
+            own_step = x / self._prev_x - 1.0 if math.isfinite(self._prev_x) and self._prev_x > 0 else float("nan")
+            shared = math.isfinite(nb_step) and math.isfinite(own_step) and own_step > 0 and nb_step >= self.jump_guard_share * own_step
             lone_jump = (self.jump_guard is not None and math.isfinite(ratio) and math.isfinite(self._prev_ratio)
-                         and (self._prev_ratio - 1.0) < self.jump_guard * (ratio - 1.0))
+                         and (self._prev_ratio - 1.0) < self.jump_guard * (ratio - 1.0) and not shared)
             # with keep_built, a reading above the expectation whose predecessor already carried at least that share
             # of its excess is kept whatever the cross-checks say: a fault does not build up over hours
             built = (self.keep_built is not None and math.isfinite(ratio) and math.isfinite(self._prev_ratio)
@@ -194,6 +213,7 @@ class Sentinel(Detector):
                     dif_state = {**dif_state, "prev": expected}
                 self._diff.set_state(dif_state)
         self._prev_ratio = ratio
+        self._prev_x = x
         return Decision(timestamp, x, float(score), 1.0, bool(flag), reason, expected, checks)
 
     # ---- series ------------------------------------------------------------------------------------
@@ -210,7 +230,7 @@ class Sentinel(Detector):
             "profile": self._profile.get_state(), "neighbors": self._neighbors.get_state(),
             "weather": self._weather.get_state(),
             "prev_diff_raw": self._prev_diff_raw, "prev_implausible": self._prev_implausible,
-            "prev_ratio": self._prev_ratio,
+            "prev_ratio": self._prev_ratio, "prev_x": self._prev_x, "prev_nb": dict(self._prev_nb),
         }
 
     def set_state(self, state: dict[str, Any]) -> Sentinel:
@@ -224,4 +244,6 @@ class Sentinel(Detector):
         self._prev_diff_raw = bool(state["prev_diff_raw"])
         self._prev_implausible = bool(state["prev_implausible"])
         self._prev_ratio = float(state.get("prev_ratio", float("nan")))
+        self._prev_x = float(state.get("prev_x", float("nan")))
+        self._prev_nb = {k: float(v) for k, v in state.get("prev_nb", {}).items()}
         return self

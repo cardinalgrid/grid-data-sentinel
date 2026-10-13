@@ -126,11 +126,13 @@ def test_sentinel_exclusion_options(arctic_fixture):
     assert np.array_equal(batch.is_anomaly, np.array(stream))
 
 
-def test_jump_guard_condemns_a_step_extreme_that_the_defaults_keep(arctic_fixture):
+def test_jump_guard_condemns_a_lone_step_but_not_one_the_neighbours_share(arctic_fixture):
     load, t, temp, nb, win, spike = arctic_fixture
     ctx = context_from(temp, t, nb)
     assert not Sentinel().predict(load, t, ctx).is_anomaly[win].any()
     guarded = Sentinel(jump_guard=0.5).predict(load, t, ctx)
-    first = int(np.flatnonzero(win)[0])
-    assert guarded.is_anomaly[first]  # the arctic morning arrives as a step: its first hour is a lone jump
+    assert not guarded.is_anomaly[win].any()  # the neighbours step up in the same hour: a shared step, kept
     assert guarded.is_anomaly[spike]
+    alone = Sentinel(jump_guard=0.5, cross_checks=("profile", "weather")).predict(load, t, Context(temperature_f=(temp, t)))
+    first = int(np.flatnonzero(win)[0])
+    assert alone.is_anomaly[first]  # without neighbours the same step is a lone jump
