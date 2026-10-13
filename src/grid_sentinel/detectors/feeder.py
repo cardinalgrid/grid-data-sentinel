@@ -63,7 +63,7 @@ def holiday_days(years, christmas_only: bool = False) -> np.ndarray:
     """U.S. federal holidays (observed on the date itself) of the given years, with the day before and after each,
     and the days from 24 December to 1 January; with ``christmas_only``, only the latter."""
     out = []
-    for y in sorted(set(int(v) for v in years)):
+    for y in sorted({int(v) for v in years}):
         if christmas_only:
             out.extend(np.datetime64(f"{y:04d}-12-24") + np.arange(9))
             out.append(np.datetime64(f"{y:04d}-01-01"))

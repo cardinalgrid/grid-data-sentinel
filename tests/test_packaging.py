@@ -25,7 +25,7 @@ def test_core_imports_without_pandas():
     )
     out = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, check=False)
     assert out.returncode == 0, out.stderr[-2000:]
-    assert out.stdout.strip().endswith("0.4.0")
+    assert out.stdout.strip().endswith("0.5.0")
     code2 = "import sys; sys.modules['pandas'] = None\nimport grid_sentinel.benchmark\n"
     out2 = subprocess.run([sys.executable, "-c", code2], capture_output=True, text=True, check=False)
     assert out2.returncode != 0 and "grid-data-sentinel[pandas]" in out2.stderr
@@ -55,7 +55,7 @@ def test_pandas_adapter_round_trip(synthetic_year):
     assert vv.dtype == np.float64 and tt.dtype == np.dtype("datetime64[ns]")
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
-        df = predict_series(Sentinel(cross_checks=(), regime="load", extremes="off"), s_gappy)
+        df = predict_series(Sentinel.v04(cross_checks=(), regime="load", extremes="off"), s_gappy)
     assert list(df.columns[:5]) == ["value", "score", "threshold", "is_anomaly", "reason"] and len(df) == len(s)
     ctx = context_from(temperature_f=pd.Series(np.full(len(t), 40.0), index=pd.DatetimeIndex(t)))
     assert ctx.aligned(t).temperature_f[0] == 40.0

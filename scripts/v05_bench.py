@@ -34,8 +34,8 @@ def union(*fns):
 
 
 def composite_variants(variants: dict) -> dict:
-    """Front A: the composite with different keyword arguments."""
-    out = {"sentinel_v3": on_contract(Sentinel)}
+    """Front A: the composite with different keyword arguments (``sentinel_v3`` is the v0.4 configuration)."""
+    out = {"sentinel_v3": on_contract(Sentinel.v04)}
     for name, kw in variants.items():
         out[f"sentinel_v3_{name}"] = on_contract(lambda kw=kw: Sentinel(**kw))
     return out
@@ -43,7 +43,7 @@ def composite_variants(variants: dict) -> dict:
 
 def detectors(variants: dict, base_kw: dict | None = None) -> dict:
     base = on_contract(lambda: Sentinel(**(base_kw or {})))
-    out = {"sentinel_v3": on_contract(Sentinel)}
+    out = {"sentinel_v3": on_contract(Sentinel.v04)}
     if base_kw:
         out["sentinel_base"] = base
     for name, kw in variants.items():

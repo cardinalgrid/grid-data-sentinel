@@ -45,7 +45,7 @@ def main(argv=None) -> int:
             v, t = from_series(reg)
             det = FeederLoss(**json.loads(a.kw))
             res = det.predict(v, t, context_from_dict(ctx_of(ba, year)))
-            u, scale, expected = det.steps(v, t, context_from_dict(ctx_of(ba, year)))
+            u, scale, _ = det.steps(v, t, context_from_dict(ctx_of(ba, year)))
             f = res.is_anomaly
             i = 0
             while i < len(f):

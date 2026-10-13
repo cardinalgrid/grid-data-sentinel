@@ -39,7 +39,7 @@ def test_sentinel_without_cross_checks_reproduces_v02_up_to_declared_differences
     from grid_sentinel.rules import sentinel_v2
 
     load, t, _temp, _nb, _win, _spike = arctic_fixture
-    new = Sentinel(cross_checks=(), regime="load", extremes="off").predict(load, t)
+    new = Sentinel.v04(cross_checks=(), regime="load", extremes="off").predict(load, t)
     old = sentinel_v2(pd.Series(load, index=pd.DatetimeIndex(t)))
     old_flags = old["is_anomaly"].to_numpy()
     assert not (new.is_anomaly & ~old_flags).any()  # the causal composite never flags what v0.2 did not
@@ -80,7 +80,7 @@ def test_sentinel_matches_v03_on_pjm_2024_up_to_declared_differences():
     t = grid.to_numpy().astype("datetime64[ns]")
     temp = ctx3["temperature_f"].reindex(grid).to_numpy()
     nb = {k: (v.reindex(grid).to_numpy(), t) for k, v in ctx3["neighbors"].items()}
-    full = Sentinel().predict(s.reindex(grid).to_numpy(), t, Context(temperature_f=(temp, t), neighbors=nb))
+    full = Sentinel.v04().predict(s.reindex(grid).to_numpy(), t, Context(temperature_f=(temp, t), neighbors=nb))
     pos = grid.get_indexer(s.index)
     new_flags, new_reason = full.is_anomaly[pos], full.reason[pos]
 
@@ -124,3 +124,13 @@ def test_sentinel_exclusion_options(arctic_fixture):
     e = Sentinel(exclude_faults="all", exclude_from="diff")
     stream = [e.update(t[i], load2[i], **aligned.at(i)).is_anomaly for i in range(len(t))]
     assert np.array_equal(batch.is_anomaly, np.array(stream))
+
+
+def test_jump_guard_condemns_a_step_extreme_that_the_defaults_keep(arctic_fixture):
+    load, t, temp, nb, win, spike = arctic_fixture
+    ctx = context_from(temp, t, nb)
+    assert not Sentinel().predict(load, t, ctx).is_anomaly[win].any()
+    guarded = Sentinel(jump_guard=0.5).predict(load, t, ctx)
+    first = int(np.flatnonzero(win)[0])
+    assert guarded.is_anomaly[first]  # the arctic morning arrives as a step: its first hour is a lone jump
+    assert guarded.is_anomaly[spike]

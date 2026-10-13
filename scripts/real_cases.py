@@ -22,6 +22,7 @@ import pandas as pd
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
+from grid_sentinel.benchmark import load_series_local
 from grid_sentinel.legacy import (  # the pandas functions of v0.3, which the figures of this page were made with
     intervals_from_mask,
     repair,
@@ -29,7 +30,6 @@ from grid_sentinel.legacy import (  # the pandas functions of v0.3, which the fi
     sentinel_v2,
     summarize_intervals,
 )
-from grid_sentinel.benchmark import load_series_local
 
 ROOT = Path(__file__).resolve().parents[1]
 DOCS = ROOT / "docs"

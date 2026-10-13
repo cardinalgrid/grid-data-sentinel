@@ -18,6 +18,7 @@ from grid_sentinel.consistency import day_is_plausible, forecast_is_plausible
 from grid_sentinel.detectors import (
     IQR,
     TEDA,
+    FeederLoss,
     Hampel,
     ModifiedZScore,
     ProfileResidual,
@@ -32,7 +33,7 @@ from grid_sentinel.repairer import Audit, Repairer, intervals_from_mask, summari
 from grid_sentinel.state import state_from_json, state_to_json
 from grid_sentinel.types import Context, Decision, DetectionResult
 
-__version__ = "0.4.0"
+__version__ = "0.5.0"
 
 __all__ = [
     "IQR",
@@ -42,6 +43,7 @@ __all__ = [
     "Decision",
     "DetectionResult",
     "Detector",
+    "FeederLoss",
     "Hampel",
     "ModifiedZScore",
     "ProfileResidual",

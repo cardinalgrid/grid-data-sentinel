@@ -29,6 +29,7 @@ from grid_sentinel.data import load_series_local
 from grid_sentinel.detectors import (
     IQR,
     TEDA,
+    FeederLoss,
     Hampel,
     ModifiedZScore,
     ProfileResidual,
@@ -77,17 +78,37 @@ def on_contract(factory: Callable[[], Detector], neighbors_key: str = "neighbors
     return fn
 
 
+def union(*fns: DetectorFn) -> DetectorFn:
+    """Flags of several detectors together; where more than one flags a reading, the first one's reason is kept."""
+
+    def fn(s: pd.Series, ctx: dict) -> pd.DataFrame:
+        outs = [f(s, ctx) for f in fns]
+        res = outs[0].copy()
+        for o in outs[1:]:
+            add = o["is_anomaly"].to_numpy(bool) & ~res["is_anomaly"].to_numpy(bool)
+            res.loc[add, "reason"] = o.loc[add, "reason"]
+            res.loc[add, "score"] = o.loc[add, "score"]
+            res["is_anomaly"] = res["is_anomaly"].to_numpy(bool) | o["is_anomaly"].to_numpy(bool)
+        return res
+
+    return fn
+
+
 def default_detectors() -> dict[str, DetectorFn]:
     """Every detector takes the series and a context dict (``temperature_f``, ``neighbors``,
-    ``neighbors_distance``); detectors that need no context ignore it. Names are those of the v0.3 tables."""
+    ``neighbors_distance``); detectors that need no context ignore it. ``sentinel_v5`` is ``Sentinel()``;
+    ``sentinel_v3`` is ``Sentinel.v04()``, the composite of v0.3 and v0.4, kept under its table name."""
     return {
-        "sentinel_v3": on_contract(Sentinel),
-        "sentinel_v3_distance_neighbors": on_contract(Sentinel, neighbors_key="neighbors_distance"),
-        "sentinel_v3_profile_neighbors": on_contract(lambda: Sentinel(cross_checks=("profile", "neighbors"))),
-        "sentinel_v3_profile_weather": on_contract(lambda: Sentinel(cross_checks=("profile", "weather"))),
-        "sentinel_v3_regime_only": on_contract(lambda: Sentinel(extremes="off")),
-        "sentinel_v3_forgetting": on_contract(lambda: Sentinel(half_life_hours=336)),
-        "sentinel_v2": on_contract(lambda: Sentinel(cross_checks=(), regime="load", extremes="off")),
+        "sentinel_v5": on_contract(Sentinel),
+        "sentinel_v5+feeder_loss": union(on_contract(Sentinel), on_contract(FeederLoss)),
+        "sentinel_v5_distance_neighbors": on_contract(Sentinel, neighbors_key="neighbors_distance"),
+        "sentinel_v5_profile_neighbors": on_contract(lambda: Sentinel(cross_checks=("profile", "neighbors"))),
+        "sentinel_v5_profile_weather": on_contract(lambda: Sentinel(cross_checks=("profile", "weather"))),
+        "sentinel_v5_no_extremes": on_contract(lambda: Sentinel(extremes="off")),
+        "sentinel_v3": on_contract(Sentinel.v04),
+        "sentinel_v3_forgetting": on_contract(lambda: Sentinel.v04(half_life_hours=336)),
+        "sentinel_v2": on_contract(lambda: Sentinel.v04(cross_checks=(), regime="load", extremes="off")),
+        "feeder_loss": on_contract(FeederLoss),
         "profile_residual": on_contract(lambda: ProfileResidual(k=4.0, regime=None)),
         "modified_zscore": on_contract(ModifiedZScore),
         "relative_deviation": on_contract(RelativeDeviation),

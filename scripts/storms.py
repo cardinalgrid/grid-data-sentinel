@@ -29,14 +29,15 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
 DETECTORS = (
-    "teda_level", "autoencoder", "modified_zscore", "relative_deviation", "sentinel_v2",
-    "sentinel_v3_regime_only", "sentinel_v3_profile_neighbors", "sentinel_v3_profile_weather",
-    "sentinel_v3_distance_neighbors", "sentinel_v3",
+    "teda_level", "autoencoder", "modified_zscore", "relative_deviation", "sentinel_v2", "sentinel_v3",
+    "sentinel_v5_no_extremes", "sentinel_v5_profile_neighbors", "sentinel_v5_profile_weather",
+    "sentinel_v5_distance_neighbors", "sentinel_v5",
 )
 SHORT = {
     "teda_level": "TEDA", "autoencoder": "AE", "modified_zscore": "mod. z", "relative_deviation": "rel. dev.",
-    "sentinel_v2": "v0.2", "sentinel_v3_regime_only": "v0.3 regime", "sentinel_v3_profile_neighbors": "v0.3 P+N",
-    "sentinel_v3_profile_weather": "v0.3 P+W", "sentinel_v3_distance_neighbors": "v0.3 dist.", "sentinel_v3": "v0.3",
+    "sentinel_v2": "v0.2", "sentinel_v3": "v0.3/0.4", "sentinel_v5_no_extremes": "v0.5 no ext.",
+    "sentinel_v5_profile_neighbors": "v0.5 P+N", "sentinel_v5_profile_weather": "v0.5 P+W",
+    "sentinel_v5_distance_neighbors": "v0.5 dist.", "sentinel_v5": "v0.5",
 }
 LIMITATIONS = (
     "One NOAA station per BA; neighbours from the aggregate 2024 interchange record, not per tie line; "
@@ -166,7 +167,8 @@ def main() -> int:
     ap.add_argument("--events", nargs="*", default=None, help="subset of events (default: all four)")
     ap.add_argument("--resume", action="store_true", help="skip (event, BA) pairs already in by_ba.csv")
     ap.add_argument("--variants", default=None,
-                    help="JSON name -> Sentinel keyword arguments: run only sentinel_v3 and these, and leave the docs alone")
+                    help="JSON name -> Sentinel keyword arguments: run only sentinel_v3 (the v0.4 configuration) and these, "
+                         "and leave the docs alone")
     a = ap.parse_args()
     a.out.mkdir(parents=True, exist_ok=True)
     warnings.filterwarnings("ignore")

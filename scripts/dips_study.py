@@ -17,9 +17,15 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from grid_sentinel.benchmark import DEFAULT_BAS, load_series_local, make_context
+from grid_sentinel.benchmark import (
+    DEFAULT_BAS,
+    context_from_dict,
+    load_series_local,
+    make_context,
+    on_contract,
+)
 from grid_sentinel.detectors import ProfileResidual, Sentinel
-from grid_sentinel.benchmark import on_contract
+from grid_sentinel.pandas import from_series, regularize
 from grid_sentinel.synthetic import ALL_TYPES, TYPES, inject_anomalies
 
 
@@ -52,13 +58,11 @@ def main(argv=None) -> int:
     out = Path(a.out)
     out.mkdir(parents=True, exist_ok=True)
     ctx_of = make_context(Path(a.tidy), Path(a.isd), Path(a.neighbors))
-    sentinel = on_contract(Sentinel)
-    profile = on_contract(lambda: ProfileResidual(k=4.0, regime="temperature"))
+    sentinel = on_contract(Sentinel.v04)  # the composite the study diagnosed
     rows, noise = [], []
     types = ALL_TYPES if a.types == "all" else TYPES
     for bi, ba in enumerate(DEFAULT_BAS):
-        for year in a.years:
-          for seed in a.seeds:
+        for year, seed in ((y, sd) for y in a.years for sd in a.seeds):
             s = load_series_local(Path(a.tidy), ba, year)
             s = s[s > 0]
             if len(s) < 24 * 30:
@@ -66,17 +70,10 @@ def main(argv=None) -> int:
             inj = inject_anomalies(s, rate=0.005, types=types, seed=1000 * seed + 37 * bi + year)
             ctx = ctx_of(ba, year)
             sres = sentinel(inj["value"], ctx)
-            det = profile(inj["value"], ctx)
             # expected from a profile run on the corrupted values (what a detector would see)
-            from grid_sentinel.detectors.profile import ProfileResidual as PR  # noqa: F401
-            pr = ProfileResidual(k=4.0, regime="temperature")
-            from grid_sentinel.pandas import regularize
-            from grid_sentinel.pandas import from_series
             reg = regularize(inj["value"])
             v, t = from_series(reg)
-            temp = ctx.get("temperature_f")
-            from grid_sentinel.benchmark import context_from_dict
-            res = pr.predict(v, t, context_from_dict(ctx) if ctx else None)
+            res = ProfileResidual(k=4.0, regime="temperature").predict(v, t, context_from_dict(ctx) if ctx else None)
             pos = reg.index.get_indexer(pd.DatetimeIndex(inj.index))
             expected = res.expected[pos] if res.expected is not None else np.full(len(inj), np.nan)
             val = inj["value"].to_numpy(float)
@@ -102,7 +99,7 @@ def main(argv=None) -> int:
                     "u_end": float(u[j + 1]) if j + 1 < len(u) else np.nan,
                     "sigma_r": sig_r, "sigma_u": sig_u,
                 })
-            print(ba, year, "events", sum(1 for _ in events(inj)), "sigma_r %.4f sigma_u %.4f" % (sig_r, sig_u), flush=True)
+            print(ba, year, "events", sum(1 for _ in events(inj)), f"sigma_r {sig_r:.4f} sigma_u {sig_u:.4f}", flush=True)
     ev = pd.DataFrame(rows)
     ev.to_csv(out / "events.csv", index=False)
     pd.DataFrame(noise).to_csv(out / "noise.csv", index=False)

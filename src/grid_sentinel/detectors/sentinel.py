@@ -7,8 +7,21 @@ against the expected profile (residual beyond ``k_profile`` robust standard devi
 non-positive readings and gross ratios are faults regardless. A kept alarm on a reading *above* the
 expectation then faces the cross-checks (profile, neighbours, weather): it stays a fault only if at
 least two of the available checks fail to confirm it as genuine, and is otherwise withdrawn as
-``extreme_kept``. The expectation is built with base-flagged readings masked out. ``cross_checks=()``
-with ``regime="load"`` and ``extremes="off"`` is the v0.2 composite; the defaults are v0.3.
+``extreme_kept``. The expectation is built with base-flagged readings masked out.
+
+Since v0.5 two rules guard the statistics and the extremes (on by default), and a third is optional:
+
+- ``exclude_faults`` / ``exclude_from``: a condemned reading does not update the eccentricity detector on first
+  differences (``"diff"``), whose next difference is taken from the expectation instead, so that earlier faults
+  do not widen the spread a later one is judged against; the threshold on differences is ``m_diff=4``.
+- ``keep_built``: a reading above the expectation whose predecessor already carried at least that share of its
+  excess is kept whatever the cross-checks say; a heat wave or a cold morning builds over hours, a fault does not.
+- ``jump_guard`` (off by default): a reading far above the expectation whose predecessor was near it (carried less
+  than that share of the excess) is a lone jump, and the cross-checks do not keep it. It catches more spikes, but it
+  also condemns the first hour of a genuine extreme that arrives as a step, which the cross-checks would keep.
+
+``Sentinel.v04()`` returns the v0.4 configuration (and v0.3 behaviour); ``cross_checks=()`` with
+``regime="load"``, ``extremes="off"`` and the v0.4 configuration is the v0.2 composite.
 
 Reasons: ``teda_level`` / ``teda_diff`` / ``stuck`` for kept base alarms, ``gross_ratio`` and
 ``non_positive`` for the hard rules, ``dropped`` for a base alarm the profile did not confirm and
@@ -39,7 +52,7 @@ class Sentinel(Detector):
     def __init__(
         self,
         m_level: float = 4.0,
-        m_diff: float = 3.0,
+        m_diff: float = 4.0,
         min_run: int = 3,
         k_profile: float = 5.0,
         band: float = 0.35,
@@ -51,10 +64,10 @@ class Sentinel(Detector):
         neighbor_pct: float = 95.0,
         half_life_hours: float | None = None,
         robust: bool = False,
-        exclude_faults: bool | str = False,
-        exclude_from: str = "both",
+        exclude_faults: bool | str = "all",
+        exclude_from: str = "diff",
         jump_guard: float | None = None,
-        keep_built: float | None = None,
+        keep_built: float | None = 0.5,
     ):
         if extremes not in ("preserve", "off"):
             raise ValueError("extremes must be 'preserve' or 'off'")
@@ -85,6 +98,12 @@ class Sentinel(Detector):
         self.jump_guard = jump_guard
         self.keep_built = keep_built
         self.reset()
+
+    @classmethod
+    def v04(cls, **kw: Any) -> Sentinel:
+        """The v0.4 composite: no exclusion of condemned readings, ``m_diff=3``, extremes kept by the cross-checks only."""
+        base = {"m_diff": 3.0, "exclude_faults": False, "exclude_from": "both", "jump_guard": None, "keep_built": None}
+        return cls(**{**base, **kw})
 
     def reset(self) -> None:
         self._level = TEDA(m=self.m_level, diff=False, robust=self.robust, half_life_hours=self.half_life_hours)
