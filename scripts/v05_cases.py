@@ -21,7 +21,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
 from grid_sentinel.benchmark import context_from_dict, load_series_local, make_context
-from grid_sentinel.detectors import Sentinel
+from grid_sentinel.detectors import FeederLoss, Sentinel
 from grid_sentinel.pandas import from_series, regularize
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -43,6 +43,20 @@ CASES = [
      "17:00 to 18:00 and falls again at midnight, almost every day. This is not demand. The v0.4 composite let "
      "it pass because the repeated jump had widened its own spread of hourly changes; v0.5 keeps condemned "
      "readings out of that spread.")),
+]
+
+# the optional feeder-loss detector: (ba, year, window start, window end, title, what it is)
+FEEDER_CASES = [
+    ("TEPC", 2024, "2024-02-13", "2024-02-17", "TEPC, February 2024: 40% of the load missing for hours",
+     ("Tucson Electric Power drops from about 1,480 MW to about 850 MW at 23:00 on 14 February, comes back for one "
+      "hour, drops again and recovers through the next morning. The neighbouring BAs make no step in the same hours; "
+      "the shape is that of a partial report.")),
+    ("AZPS", 2024, "2024-03-30", "2024-04-06", "AZPS, April 2024: three days with deep middays",
+     ("From 2 to 5 April, Arizona Public Service's midday load sits 15% to 20% below the calendar profile for three days. "
+      "The reported demand is net of rooftop solar, and a run of clear days after cloudy ones would have this shape: "
+      "a deeper midday than the profile expects, day after day. The sky over those days was not checked here; the point "
+      "is that the detector cannot tell such a run from a partial report without irradiance, which is one reason "
+      "it stays optional.")),
 ]
 
 
@@ -70,6 +84,23 @@ def plot(x, f_old, f_new, exp, title, name):
     ax.scatter(x.index[only_new], x[only_new] / 1e3, s=16, color=RED, zorder=3, label="flagged by v0.5 only")
     if both.any():
         ax.scatter(x.index[both], x[both] / 1e3, s=16, color=NAVY, zorder=3, label="flagged by both")
+    ax.set_title(title, loc="left", fontsize=11, color=NAVY, fontweight="bold")
+    ax.set_ylabel("demand, GW")
+    ax.set_xlabel("local time")
+    ax.legend(fontsize=8, loc="best")
+    ax.grid(alpha=0.25)
+    ax.spines[["top", "right"]].set_visible(False)
+    fig.autofmt_xdate()
+    fig.tight_layout()
+    fig.savefig(FIG / name, dpi=150)
+    plt.close(fig)
+
+
+def plot_feeder(x, f, exp, title, name):
+    fig, ax = plt.subplots(figsize=(8, 3.6))
+    ax.plot(x.index, x / 1e3, color="#212121", lw=0.8, label="as reported")
+    ax.plot(exp.index, exp / 1e3, color=TEAL, lw=0.8, ls="--", label="expected (calendar profile)")
+    ax.scatter(x.index[f], x[f] / 1e3, s=16, color=RED, zorder=3, label="flagged by FeederLoss")
     ax.set_title(title, loc="left", fontsize=11, color=NAVY, fontweight="bold")
     ax.set_ylabel("demand, GW")
     ax.set_xlabel("local time")
@@ -114,6 +145,28 @@ def main() -> int:
         lines += [f"## {title}", "", what, "", f"Flags in the window: v0.4 composite {n_old}, v0.5 composite {n_new}.", "",
                   f"![{title}](figures/real/{name})", ""]
         print(ba, start, "v0.4", n_old, "v0.5", n_new, flush=True)
+    lines += [
+        "## The optional feeder-loss detector on the public record",
+        "",
+        ("`FeederLoss` is not part of the composite. Run on every BA with a weather station in 2023 and 2024, it flags 98 "
+         "segments (0.33% of the readings), 49 of them at WALC. Two of them: one that looks like a fault of the published "
+         "series, and one that may be a real change of demand with the same shape."),
+        "",
+    ]
+    for ba, year, start, end, title, what in FEEDER_CASES:
+        s = load_series_local(tidy, ba, year)
+        s = s[s > 0]
+        reg = regularize(s)
+        v, t = from_series(reg)
+        res = FeederLoss().predict(v, t, context_from_dict(ctx_of(ba, year)))
+        idx = pd.DatetimeIndex(t)
+        x, f, exp = pd.Series(v, idx), pd.Series(res.is_anomaly, idx), pd.Series(res.expected, idx)
+        w = slice(start, end)
+        name = f"v05_feeder_{ba.lower()}_{start}.png"
+        plot_feeder(x.loc[w], f.loc[w], exp.loc[w], title, name)
+        lines += [f"### {title}", "", what, "", f"Readings flagged in the window: {int(f.loc[w].sum())}.", "",
+                  f"![{title}](figures/real/{name})", ""]
+        print(ba, start, "feeder", int(f.loc[w].sum()), flush=True)
     (DOCS / "real_cases_v05.md").write_text("\n".join(lines) + "\n", encoding="utf-8", newline="\n")
     print("wrote docs/real_cases_v05.md")
     return 0

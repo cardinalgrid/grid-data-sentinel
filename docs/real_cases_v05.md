@@ -26,3 +26,23 @@ Flags in the window: v0.4 composite 0, v0.5 composite 5.
 
 ![SRP, May 2023: the 23:00 reading returns to the afternoon level](figures/real/v05_srp_2023-05-12.png)
 
+## The optional feeder-loss detector on the public record
+
+`FeederLoss` is not part of the composite. Run on every BA with a weather station in 2023 and 2024, it flags 98 segments (0.33% of the readings), 49 of them at WALC. Two of them: one that looks like a fault of the published series, and one that may be a real change of demand with the same shape.
+
+### TEPC, February 2024: 40% of the load missing for hours
+
+Tucson Electric Power drops from about 1,480 MW to about 850 MW at 23:00 on 14 February, comes back for one hour, drops again and recovers through the next morning. The neighbouring BAs make no step in the same hours; the shape is that of a partial report.
+
+Readings flagged in the window: 10.
+
+![TEPC, February 2024: 40% of the load missing for hours](figures/real/v05_feeder_tepc_2024-02-13.png)
+
+### AZPS, April 2024: three days with deep middays
+
+From 2 to 5 April, Arizona Public Service's midday load sits 15% to 20% below the calendar profile for three days. The reported demand is net of rooftop solar, and a run of clear days after cloudy ones would have this shape: a deeper midday than the profile expects, day after day. The sky over those days was not checked here; the point is that the detector cannot tell such a run from a partial report without irradiance, which is one reason it stays optional.
+
+Readings flagged in the window: 72.
+
+![AZPS, April 2024: three days with deep middays](figures/real/v05_feeder_azps_2024-03-30.png)
+
