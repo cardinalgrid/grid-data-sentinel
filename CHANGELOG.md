@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.5.0 (unreleased)
+## 0.5.0 (2026-10-13)
 
 The composite stops learning from the faults it condemns and stops condemning heat waves; a detector for partial loss of telemetry joins as an option.
 

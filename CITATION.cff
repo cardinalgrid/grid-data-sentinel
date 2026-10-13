@@ -2,8 +2,8 @@ cff-version: 1.2.0
 message: "If you use this software or its results, please cite it as below."
 type: software
 title: "Grid Data Sentinel: anomaly detection and repair for load telemetry with recursive TEDA, sparse autoencoders and calendar-aware profiles"
-version: 0.4.0
-date-released: 2026-10-04
+version: 0.5.0
+date-released: 2026-10-13
 license: Apache-2.0
 doi: 10.5281/zenodo.22726013
 identifiers:
@@ -38,7 +38,7 @@ abstract: >
   only numpy: a streaming recursive TEDA detector, a sparse window autoencoder, three reference detectors,
   a calendar-aware profile with a temperature regime, cross-checks of high readings against the
   expected profile, the interchange neighbours and the local temperature so that genuine extremes
-  are kept, labelled anomaly injection, an audited repair step, a benchmark on public EIA-930
+  are kept, an optional detector for partial loss of load telemetry, labelled anomaly injection, an audited repair step, a benchmark on public EIA-930
   hourly demand and an evaluation on four winter storms.
 references:
   - type: article
