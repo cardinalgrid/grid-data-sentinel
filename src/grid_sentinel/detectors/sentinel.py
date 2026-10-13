@@ -54,6 +54,7 @@ class Sentinel(Detector):
         exclude_faults: bool | str = False,
         exclude_from: str = "both",
         jump_guard: float | None = None,
+        keep_built: float | None = None,
     ):
         if extremes not in ("preserve", "off"):
             raise ValueError("extremes must be 'preserve' or 'off'")
@@ -82,6 +83,7 @@ class Sentinel(Detector):
         self.exclude_faults = exclude_faults or False
         self.exclude_from = exclude_from
         self.jump_guard = jump_guard
+        self.keep_built = keep_built
         self.reset()
 
     def reset(self) -> None:
@@ -154,7 +156,11 @@ class Sentinel(Detector):
             # is a lone jump, and the cross-checks (which see the weather, not the jump) do not keep it
             lone_jump = (self.jump_guard is not None and math.isfinite(ratio) and math.isfinite(self._prev_ratio)
                          and (self._prev_ratio - 1.0) < self.jump_guard * (ratio - 1.0))
-            if above and not lone_jump and not preserve_one(True, True, used):
+            # with keep_built, a reading above the expectation whose predecessor already carried at least that share
+            # of its excess is kept whatever the cross-checks say: a fault does not build up over hours
+            built = (self.keep_built is not None and math.isfinite(ratio) and math.isfinite(self._prev_ratio)
+                     and ratio > 1.0 and (self._prev_ratio - 1.0) >= self.keep_built * (ratio - 1.0))
+            if above and (built or (not lone_jump and not preserve_one(True, True, used))):
                 flag, reason = False, "extreme_kept"
         excluded = flag and (self.exclude_faults == "all" or reason in GROSS_REASONS)
         if before is not None and excluded:
