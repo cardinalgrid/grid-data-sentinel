@@ -1,3 +1,17 @@
+# Migrating to 0.5
+
+0.5 changes the defaults of `Sentinel` and nothing else in the interface. To keep the 0.4 decisions exactly,
+replace `Sentinel(...)` with `Sentinel.v04(...)`; the keyword arguments are the same. What changes with the
+new defaults:
+
+- Condemned readings no longer update the eccentricity detector on first differences, and its threshold is 4
+  instead of 3: more single dips are caught, and some ramps that 0.4 flagged in the first weeks of a series,
+  before the profile has history, are not.
+- A reading above the expectation whose predecessor already carried at least half of its excess is kept
+  (`extreme_kept`) even when the cross-checks do not confirm it: heat waves that 0.4 flagged are kept.
+- `FeederLoss` is new and optional; the composite does not call it.
+- The benchmark's `sentinel_v3` entry is now `Sentinel.v04()`; the default composite is `sentinel_v5`.
+
 # Migrating from 0.3 to 0.4
 
 0.4 replaces the function-based API with estimator classes on one contract, makes the core independent

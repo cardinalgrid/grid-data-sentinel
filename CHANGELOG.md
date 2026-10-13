@@ -1,5 +1,33 @@
 # Changelog
 
+## 0.5.0 (unreleased)
+
+The composite stops learning from the faults it condemns and stops condemning heat waves; a detector for partial loss of telemetry joins as an option.
+
+Changed
+- `Sentinel()` defaults. A condemned reading no longer updates the eccentricity detector on first differences: its state goes back to what it was, and the next difference is taken from the expectation (`exclude_faults="all"`, `exclude_from="diff"`); the threshold on differences is `m_diff=4` (was 3). The detectors keep no forgetting, so in 0.4 every earlier spike, zero run or unit error widened the spread a later dip was judged against; recall on single dips was 0.71. Excluding condemned readings from the level detector as well was tried and rejected: the level spread then stays narrow and genuine summer peaks get flagged (adjusted precision 0.87).
+- `Sentinel()` keeps a reading above the expectation whose predecessor already carried at least half of its excess (`keep_built=0.5`), whatever the cross-checks say. A demand extreme builds over hours; a fault does not. On the series as published, the 0.4 composite flagged readings of genuine heat waves that the temperature and neighbour checks did not confirm (CISO in June 2021 and July 2023, NYISO and PJM in June 2021, among others: 126 readings in the ten benchmark BAs over 2021 to 2024).
+- `Sentinel.v04()` returns the 0.4 configuration, which also reproduces the 0.3 composite. The benchmark keeps it under its table name `sentinel_v3`; the new default is `sentinel_v5`.
+
+Added
+- `FeederLoss` (batch only, optional): a step down, a plateau and a matching step back up in the hourly change of the log load net of the calendar profile's expected change. The onset must be at least 5 % and 5 robust spreads (scaled MAD of the previous 28 days, updated daily); the recovery must come within 3 to 96 hours and match the onset within half its size; the readings in between must sit below the line joining the residual before and after by more than half the step in at least 80 % of the hours. Candidates are dropped when both edges fall on midnights or one falls on a midnight where the day type changes (the profile switches day group there), when an edge falls between 24 December and 2 January, and when a neighbouring BA makes a step of the same sign in the same hour (6 spreads). Exported from `grid_sentinel` and `grid_sentinel.detectors`.
+- `Sentinel(jump_guard=...)` (off by default): a reading far above the expectation whose predecessor was near it is not kept by the cross-checks. It catches more spikes (recall 0.87 to 0.93 with per-BA injections) but condemns the first hour of a genuine extreme that arrives as a step, which the cross-checks would keep; a test documents the trade.
+- `Sentinel(exclude_faults="gross")` keeps only non-positive readings, gross ratios and frozen runs out of the statistics; `exclude_from` chooses `"level"`, `"diff"` or `"both"`.
+- Benchmark: `--per-series-seed` draws a different injection for each BA (seed `1000 * seed + 37 * i + year`). The published scheme (`seed + year`) puts the faults at the same hours in every BA, so one drawn fault counts ten times; `summary.json` records which scheme was used. `benchmark.union` combines detectors. New benchmark entries: `sentinel_v5+feeder_loss`, `feeder_loss`, `sentinel_v5_no_extremes` and the cross-check ablations of the new composite.
+- `scripts/v05_bench.py`, `scripts/real_diff.py`, `scripts/tune_feeder.py`, `scripts/feeder_clean_survey.py`, `scripts/dips_study.py`: the studies behind this release. `scripts/storms.py --variants` runs composite configurations on the four winter events without touching the docs.
+
+Fixed
+- `scripts/real_cases.py` ran with the 0.3 names removed from the top-level namespace in 0.4 and failed; it imports them from `grid_sentinel.legacy`. The SWPP case text quotes the survey's own count (82 frozen runs, 2,919 hours) instead of a hard-coded figure.
+
+Results
+- Standard benchmark (20 BA-years, 0.5 % faults, published injection scheme): adjusted precision 0.994 against 0.976 for 0.4, adjusted F1 0.989 against 0.974; recall on dips 0.95 against 0.71; spikes 0.95, zeros 1.00, frozen 1.00 and unit errors 0.99, all unchanged.
+- PER_SERIES_LINE
+- Confirmation on years not used in development (2021 and 2022, seeds 1 and 2, both injection schemes): adjusted F1 0.996 against 0.963 (published scheme) and 0.992 against 0.963 (per-BA injections); adjusted precision is equal or higher in each of the eight seed-year combinations.
+- STORMS_LINE
+- On the series as published, ten benchmark BAs over 2021 to 2024: 627 readings flagged against 856 for 0.4, none of them new. The 229 that leave are 102 morning ramps flagged at the start of each year, before the profile has history, and 126 genuine heat-wave readings. On every BA with a weather station over 2023 and 2024: 1,680 against 2,300; 706 leave (ramps without expectation, heat-wave peaks in the West) and 86 enter, which on inspection are faults of the published series: in SRP from May to early July 2023 the 23:00 reading returns to the level of 17:00 to 18:00, and WALC has drops to a third of its load.
+- Feeder loss (`--feeder-loss`): with the published scheme, the composite together with `FeederLoss` reaches adjusted F1 0.549 against 0.353 for the composite alone, recall on feeder losses 0.37 against 0.03; the published scheme has two distinct feeder-loss draws repeated over the ten BAs. With per-BA injections (seeds 0 and 1), recall 0.59 and F1 0.75 against 0.54; in 2021 and 2022 (seeds 1 and 2), recall 0.74 and F1 0.79 against 0.51. With only feeder losses injected at 2 %, it finds about two thirds of them at a precision of 0.91 to 0.94.
+- Why `FeederLoss` stays optional: on the standard benchmark the union with the composite drops adjusted precision from 0.994 to 0.899. The detector flags 73 readings on the 20 uninjected benchmark series (three segments: two short drops at SWPP and a rainy Sunday at Duke), and they weigh heavily in series with few injected faults. On every BA with a station, 2023 and 2024, it flags 0.33 % of readings, 40 % of them at WALC. The adoption rule, fixed before the first number, admits a new piece into the default composite only if the standard benchmark's adjusted precision falls by no more than 0.01.
+
 ## 0.4.0 (2026-10-04)
 
 The interface release: the methods do not change, the way of using them does.

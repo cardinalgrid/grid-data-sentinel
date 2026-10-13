@@ -4,7 +4,7 @@
 
 The FERC and NERC reviews of recent winter storms record the largest day-ahead load under-forecast by a balancing authority at 14% during Winter Storms Gerri and Heather (January 2024), with errors peaking early in the storms as the weather worsened ([FERC/NERC 2025](https://www.ferc.gov/news-events/news/ferc-nerc-issue-report-system-performance-during-january-2025-arctic-weather)). Those first cold hours are exactly the readings a statistical filter is most likely to mistake for bad data. NERC lists data validation, anomaly detection and provenance as preconditions for trustworthy operator-facing AI ([NERC 2024](https://www.nerc.com/pa/rrm/bpsa/Documents/Whitepaper-AI%20and%20ML%20in%20Real-Time%20System%20Operations.pdf)). This package is a small, dependency-light toolkit for that problem: detect corrupted readings in a load series, repair them with an audit trail, and measure how well each method does on public EIA-930 data, both with known injected faults and on the faults the public record actually contains.
 
-> Status: **v0.4.0**. One estimator contract for every detector (`fit` / `predict` / `score` in batch, `update` one reading at a time), a core that depends on numpy only, and the whole composite, cross-checks included, in streaming with a serialisable state. The 0.3 functions remain in `grid_sentinel.legacy` for one minor version. See `docs/api.md` and `docs/migration.md`.
+> Status: **v0.5.0**. The composite no longer learns from the faults it condemns, which lifts recall on single dips from 0.71 to 0.95, and it keeps readings that build over hours above the expectation, so heat waves are no longer flagged; adjusted precision goes from 0.976 to 0.994. A detector for partial loss of load telemetry (`FeederLoss`) joins as an option. One estimator contract for every detector, a numpy-only core, the composite in streaming with a serialisable state; the 0.3 functions remain in `grid_sentinel.legacy` until 1.0. See `CHANGELOG.md`, `docs/api.md` and `docs/migration.md`.
 
 ## Methods
 
@@ -17,7 +17,9 @@ Detection and repair are separate steps. Every detector returns the series uncha
 | `StuckValues` | Rule (causal since 0.4: a reading is flagged from the third identical one on): a run of identical consecutive readings is a frozen telemetry value, not a measurement. | Operational practice |
 | `ProfileResidual` | Calendar-aware expectation, computed one day at a time: day types (workday, Saturday, Sunday, with the special days that behave like each) and an optional regime label; references are the last two weeks plus the same three weeks of the previous year; the residual is scaled by its recent MAD. The design follows [Cardinal Grid Note 2](https://github.com/cardinalgrid/notes), which tested the alternatives on 44 balancing authorities. | This package |
 | `Sentinel(cross_checks=(), regime="load", extremes="off")` | Composite v0.2: the base detectors, each flag kept only if the reading (or the one before it) is also implausible against the profile; frozen runs, non-positive readings and gross ratios are faults regardless. | This package |
-| `Sentinel()` | Composite v0.3, now streaming: v0.2 with the profile regime read from the daily mean temperature, plus a rule for readings flagged *above* the expected value: the flag stands only if at least two of the available cross-checks fail to confirm the reading as genuine. Cross-checks: the profile (ratio to the expectation within 35%), the neighbours (the median normalised load of the BA's interchange partners is above its own recent 95th percentile at that hour) and the weather (the hour's temperature is in the BA's own seasonal tail for the heating or cooling regime). With two checks available the reading must fail both; with fewer, the v0.2 decision stands. Readings below the expectation, frozen runs and non-positive values are unchanged. | This package |
+| `Sentinel.v04()` | Composite v0.3, streaming since v0.4: v0.2 with the profile regime read from the daily mean temperature, plus a rule for readings flagged *above* the expected value: the flag stands only if at least two of the available cross-checks fail to confirm the reading as genuine. Cross-checks: the profile (ratio to the expectation within 35%), the neighbours (the median normalised load of the BA's interchange partners is above its own recent 95th percentile at that hour) and the weather (the hour's temperature is in the BA's own seasonal tail for the heating or cooling regime). With two checks available the reading must fail both; with fewer, the v0.2 decision stands. Readings below the expectation, frozen runs and non-positive values are unchanged. | This package |
+| `Sentinel()` (since v0.5) | The v0.3 composite with two guards. A condemned reading does not update the detector on first differences, whose next difference is taken from the expectation, and the threshold on differences is 4: earlier faults no longer widen the spread a later one is judged against. A reading above the expectation whose predecessor already carried at least half of its excess is kept, whatever the cross-checks say: a demand extreme builds over hours, a fault does not. `Sentinel.v04()` is the v0.3/v0.4 configuration. | This package |
+| `FeederLoss` (optional, batch) | Partial loss of telemetry: a step down of at least 5 %, a plateau below the expectation and a matching step back up within 3 to 96 hours, in the hourly change of the log load net of the calendar profile's expected change. Steps on day-type midnights, in the Christmas week or shared with a neighbouring BA in the same hour are not confirmed. | This package |
 | `neighbors`, `weather`, `stations` | Neighbour table from the public EIA-930 interchange record (`docs/neighbors.csv`, one year of hourly interchange, median absolute MW as weight, station distance as fallback), hourly ISD-Lite temperature per BA on the load's local index, and the BA-to-airport map. | EIA-930, NOAA ISD-Lite |
 | `legacy.sentinel_v2` | The v0.2 function, unchanged (deprecated): the v0.1 detectors, each flag kept only if the reading (or a neighbour) is also implausible against the profile; frozen runs, non-positive readings and gross ratios to the expected value (outside 1/3 to 3×) are kept without the check. | This package |
 | `RollingZScore`, `Hampel`, `IQR`, `ModifiedZScore`, `RelativeDeviation` | Reference detectors, including the two rules most common in utility practice: the Iglewicz-Hoaglin modified z-score and a 15% deviation from a centred mean. | Standard |
@@ -65,19 +67,21 @@ The first cold morning of the season in the Carolinas: demand peaks at 7 a.m. fo
 Ten large balancing authorities, hourly demand for 2023 and 2024 from the EIA-930 balance files (via [ba-forecast-scorecard](https://github.com/cardinalgrid/ba-forecast-scorecard)), 0.5% of readings corrupted with labelled faults, every detector run on the corrupted series with its default settings.
 
 <!-- results:start -->
-Benchmark v0.4.0 run 2026-09-17: 20 BA-years (PJM, MISO, ERCO, CISO, SWPP, NYIS, ISNE, TVA, DUK, BPAT; 2023, 2024), 0.5% of readings corrupted, tolerance ±1 reading. Means over series.
+Benchmark v0.5.0 run 2026-10-13: 20 BA-years (PJM, MISO, ERCO, CISO, SWPP, NYIS, ISNE, TVA, DUK, BPAT; 2023, 2024), 0.5% of readings corrupted, tolerance ±1 reading. Means over series.
 
 | Detector | Precision | Precision (adj.) | Recall | F1 (adj.) | MCC | Spike | Dip | Zero | Stuck | Scale | s/series |
 |---|---|---|---|---|---|---|---|---|---|---|---|
+| Composite v0.5 (v0.3 + faults kept out of the difference statistics + extremes that build over hours kept) | 0.93 | 0.99 | 0.99 | 0.99 | 0.95 | 0.95 | 0.95 | 1.00 | 1.00 | 0.99 | 3.4 |
+| Composite v0.5, profile and neighbours only | 0.93 | 0.99 | 0.98 | 0.99 | 0.95 | 0.90 | 0.95 | 1.00 | 1.00 | 0.99 | 3.3 |
+| Composite v0.5 with neighbours by station distance instead of interchange | 0.93 | 0.99 | 0.98 | 0.99 | 0.95 | 0.90 | 0.95 | 1.00 | 1.00 | 0.99 | 2.7 |
+| Composite v0.5, profile and weather only | 0.93 | 0.99 | 0.98 | 0.99 | 0.95 | 0.85 | 0.95 | 1.00 | 1.00 | 0.99 | 1.6 |
+| Composite v0.5 without the extremes rule | 0.92 | 0.98 | 0.99 | 0.98 | 0.94 | 1.00 | 0.95 | 1.00 | 1.00 | 0.99 | 3.4 |
 | v0.3 function sentinel_v3 (legacy, for comparison) | 0.92 | 0.98 | 0.97 | 0.97 | 0.93 | 0.95 | 0.71 | 1.00 | 1.00 | 0.99 | 0.3 |
-| Composite v0.3 (v0.2 + temperature regime + extremes kept by two of three cross-checks) | 0.92 | 0.98 | 0.97 | 0.97 | 0.93 | 0.95 | 0.71 | 1.00 | 1.00 | 0.99 | 3.4 |
-| Composite v0.3 with neighbours by station distance instead of interchange | 0.92 | 0.98 | 0.97 | 0.97 | 0.93 | 0.90 | 0.70 | 1.00 | 1.00 | 0.99 | 2.7 |
+| Composite v0.3/v0.4 (v0.2 + temperature regime + extremes kept by two of three cross-checks) | 0.92 | 0.98 | 0.97 | 0.97 | 0.93 | 0.95 | 0.71 | 1.00 | 1.00 | 0.99 | 3.4 |
 | v0.3 function sentinel_v2 (legacy, for comparison) | 0.90 | 0.96 | 0.98 | 0.97 | 0.93 | 0.95 | 0.70 | 1.00 | 1.00 | 1.00 | 0.2 |
-| Composite v0.3, profile and weather only | 0.92 | 0.98 | 0.97 | 0.97 | 0.93 | 0.85 | 0.68 | 1.00 | 1.00 | 0.99 | 1.6 |
 | Composite v0.2 (v0.1 detectors confirmed by the calendar profile) | 0.90 | 0.96 | 0.98 | 0.97 | 0.93 | 0.95 | 0.70 | 1.00 | 1.00 | 1.00 | 1.5 |
-| Composite v0.3, profile and neighbours only | 0.92 | 0.98 | 0.97 | 0.97 | 0.93 | 0.90 | 0.68 | 1.00 | 1.00 | 0.99 | 3.3 |
-| Composite v0.2 with the temperature regime, no extremes rule | 0.91 | 0.97 | 0.97 | 0.97 | 0.93 | 1.00 | 0.72 | 1.00 | 1.00 | 0.99 | 3.4 |
-| Composite v0.3 with exponential forgetting (half-life 14 days) | 0.88 | 0.94 | 0.96 | 0.95 | 0.91 | 0.95 | 0.99 | 1.00 | 1.00 | 0.95 | 3.4 |
+| Composite v0.4 with exponential forgetting (half-life 14 days) | 0.88 | 0.94 | 0.96 | 0.95 | 0.91 | 0.95 | 0.99 | 1.00 | 1.00 | 0.95 | 3.4 |
+| Composite v0.5 together with the optional feeder-loss detector | 0.84 | 0.90 | 0.99 | 0.93 | 0.89 | 0.95 | 0.95 | 1.00 | 1.00 | 0.99 | 5.0 |
 | v0.3 function sentinel, the v0.1 composite (legacy) | 0.87 | 0.93 | 0.92 | 0.92 | 0.88 | 1.00 | 0.61 | 1.00 | 1.00 | 0.94 | 0.1 |
 | Sparse autoencoder (window 4, code 2, factor 20) | 0.88 | 0.89 | 0.93 | 0.91 | 0.91 | 0.90 | 0.90 | 0.90 | 0.04 | 0.98 | 0.3 |
 | Recursive TEDA (levels, m=4) | 0.97 | 0.98 | 0.82 | 0.89 | 0.89 | 0.60 | 0.21 | 1.00 | 0.00 | 0.93 | 0.1 |
@@ -90,17 +94,25 @@ Benchmark v0.4.0 run 2026-09-17: 20 BA-years (PJM, MISO, ERCO, CISO, SWPP, NYIS,
 | Rolling z-score (168 h, k=3) | 0.68 | 0.69 | 0.11 | 0.18 | 0.25 | 0.95 | 0.85 | 1.00 | 0.00 | 0.00 | 0.0 |
 | Hampel filter (24 h, k=3) | 0.07 | 0.07 | 0.20 | 0.10 | 0.11 | 0.95 | 0.72 | 1.00 | 0.08 | 0.15 | 0.0 |
 | stuck_rule | 0.46 | 0.55 | 0.05 | 0.10 | 0.14 | 0.00 | 0.00 | 0.00 | 1.00 | 0.01 | 0.1 |
+| Feeder-loss detector alone (step down, plateau, matching step up) | 0.00 | 0.00 | 0.00 | 0.00 | -0.00 | 0.00 | 0.00 | 0.00 | 0.00 | 0.00 | 1.6 |
 
 Columns Spike to Scale are recall by anomaly type. Precision (adj.) and F1 (adj.) do not count as false alarms the flags on readings that the public series already had wrong (frozen runs, non-positive values, unit errors; see `docs/real_cases.md`); the plain precision does. Full table: `results/benchmark_by_series.csv`.
 <!-- results:end -->
 
 What the table says:
 
-- **The v0.2 composite is the best detector on every count that matters**: adjusted precision 0.96 and recall 0.98, against 0.93 and 0.92 for v0.1; every fault type is caught, and dips, the weak spot of v0.1, go from 61% to 70%.
-- **Plain precision understates both composites.** The source series already contain frozen runs and unit errors (see the survey above); a detector that flags them is right, but the injected-fault benchmark counts it as a false alarm. The adjusted columns exclude those readings from the denominator.
+- **The v0.5 composite is the best detector on every count that matters**: adjusted precision 0.994 and recall 0.985, against 0.976 and 0.972 for v0.3/v0.4; dips, the weak spot of every earlier composite, go from 71% to 95%, and no other fault type loses recall.
+- **Dips were missed because the detectors learned from the faults.** The eccentricity detectors keep no forgetting; every earlier spike, zero run or unit error widened the spread a later dip was judged against. Keeping condemned readings out of the difference statistics fixes that. Doing the same for the level statistics, or adding exponential forgetting (the `forgetting` row), also recovers the dips but flags genuine summer peaks.
+- **The optional feeder-loss detector costs precision here** (0.994 to 0.899 in the union) because this benchmark injects no feeder losses: the readings it flags on the real series count as false alarms. Its own benchmark is below.
+- **Plain precision understates the composites.** The source series already contain frozen runs and unit errors (see the survey above); a detector that flags them is right, but the injected-fault benchmark counts it as a false alarm. The adjusted columns exclude those readings from the denominator.
 - **The autoencoder has the best recall on dips but misses frozen values**, which no reconstruction method sees: a frozen value is a perfectly reconstructable reading. The rule catches them all.
 - **Reference detectors fail in the expected ways.** The global IQR rule flags every legitimate winter and summer peak; the Hampel filter and rolling z-score are blind to unit-error runs longer than their window; the modified z-score and the 15% rule, common in practice, sit in the middle.
 - **The profile alone is not a detector.** With precision 0.23 it fires on every genuine departure from the calendar, first cold mornings included. As a confirmation of the level and difference detectors it is what lifts v0.2 above v0.1.
+- **The injection scheme matters.** The table follows the published scheme, in which every BA gets its faults at the same hours, so one drawn fault counts ten times. With a different injection per BA (`--per-series-seed`, `results/per_series/`) the v0.3/v0.4 composite catches 75% of spikes rather than 95%; PER_SERIES_SENTENCE
+
+### Partial loss of telemetry
+
+A feeder or a metering point that drops out of a BA's total for hours and comes back is a fault no composite here sees: it looks like a plausible day. With 6- to 72-hour losses of 5% to 30% of the load added to the injection (`--feeder-loss`, `results/feeder_loss/`), every detector in the table above catches at most 4% of them. `FeederLoss` looks for the shape (a step down, a plateau below the expectation, a matching step back up) and finds about 60% of them with a different injection per BA (74% in 2021 and 2022), at a precision of 0.91 to 0.94 when only feeder losses are injected. Together with the composite, adjusted F1 on the feeder-loss benchmark goes from 0.54 to 0.75 (per-BA injections; 0.35 to 0.55 with the published scheme, which has only two distinct feeder-loss draws). On the series as published it flags 0.33% of readings across 43 BAs over 2023 and 2024, 40% of them in one BA with real faults (WALC). It stays optional: the default composite admits a new piece only if the standard benchmark's adjusted precision falls by no more than 0.01.
 
 Defaults were chosen from sensitivity grids (`scripts/tune.py`, `results/tuning.csv`, and the v0.2 grid described in the changelog). The autoencoder threshold factor in particular is not portable across data: 3× the trimmed-mean error was right for 15-minute substation data in the 2024 paper; 20× is right for hourly BA data.
 
@@ -131,7 +143,7 @@ Batch, on numpy arrays (hourly readings and local-time timestamps on a regular g
 import numpy as np
 from grid_sentinel import Sentinel, Repairer, Context
 
-det = Sentinel()                                             # the v0.3 composite; Sentinel(cross_checks=(), regime="load", extremes="off") is v0.2
+det = Sentinel()                                             # the v0.5 composite; Sentinel.v04() is v0.3/v0.4
 res = det.predict(values, timestamps, Context(temperature_f=(temp_f, temp_t), neighbors={"MISO": (miso, miso_t)}))
 res.is_anomaly, res.reason, res.expected, res.checks       # reason: teda_level, stuck, gross_ratio, extreme_kept, ...
 res.summary(); res.explain(i); res.intervals()
@@ -163,21 +175,32 @@ python scripts/make_figures.py --tidy path/to/ba-forecast-scorecard/data/tidy   
 python scripts/real_cases.py --tidy path/to/ba-forecast-scorecard/data/tidy     # the survey and gallery
 ```
 
+Partial loss of telemetry, in batch, alongside the composite:
+
+```python
+from grid_sentinel import FeederLoss
+
+loss = FeederLoss().predict(values, timestamps, Context(neighbors={"MISO": (miso, miso_t)}))
+flags = res.is_anomaly | loss.is_anomaly                    # loss.reason == "feeder_loss" where it fires
+```
+
 Streaming use of the TEDA detector, one reading at a time:
 
 ```python
-from grid_sentinel import RecursiveTEDA
-det = RecursiveTEDA(m=4.0)
-for x in readings:
-    r = det.update(x)
-    if r.is_anomaly:
+from grid_sentinel import TEDA
+det = TEDA(m=4.0)
+for t, x in readings:
+    d = det.update(t, x)
+    if d.is_anomaly:
         ...
 ```
 
 ## Limitations
 
-- The benchmark measures sensitivity to *injected* faults on top of series that already have faults of their own; the adjusted precision is the honest one, and it is still a benchmark on simple fault types (single-reading spikes and dips, zero runs, frozen values, ×10 and ×0.1 runs). Slow drift and partial feeder loss are not modelled yet.
-- `RecursiveTEDA` keeps all history. On a decade of data the running variance is dominated by the seasonal cycle. The winsorised update protects it from bad runs, not from drift; a forgetting factor is planned.
+- The benchmark measures sensitivity to *injected* faults on top of series that already have faults of their own; the adjusted precision is the honest one, and it is still a benchmark on simple fault types (single-reading spikes and dips, zero runs, frozen values, ×10 and ×0.1 runs, and, optionally, partial feeder losses). Slow drift is not modelled.
+- `TEDA` keeps all history unless `half_life_hours` is set. On a decade of data the running variance is dominated by the seasonal cycle; the composite keeps condemned readings out of the difference statistics, not the drift of the season.
+- The rule that keeps extremes building over hours (`keep_built`) would also keep a fault that rises gradually and stays above the expectation; none of the injected types has that shape, and on the public series no such fault was found in the readings it keeps, but it is a known blind spot. Spikes smaller than the profile band (35%) are not confirmed.
+- `FeederLoss` needs both edges of a loss: it confirms a loss only after the recovery, so it is batch only, and it misses losses smaller than about 5% or than five spreads of the hourly step (8% to 10% in the noisier BAs).
 - Without a temperature series the profile's regime is read from yesterday's load (morning peak or not). With one, the regime is the daily mean temperature (heating below 59 °F, cooling above 72 °F); one airport represents each BA.
 - Neighbours come from one year of aggregate interchange (2024) and are treated as fixed; BAs whose partners are outside the EIA-930 record (Canada, Mexico) fall back to station distance and may end with a single neighbour, in which case the neighbour check is unavailable and the rule requires both remaining checks to fail.
 - The composite decides each reading when it arrives. Compared with the 0.3 batch functions this costs a reading per frozen run (flagged from the third identical value) and the look-ahead of the profile confirmation; `docs/migration.md` lists every such difference and its measured size.
@@ -191,9 +214,9 @@ for x in readings:
 | v0.1 | September 2026 | TEDA + autoencoder + rules, batch mode, benchmark on EIA-930 |
 | v0.2 | September 2026 | Calendar-aware profile and confirmation, interval table, equivalent-day repair, practice baselines, survey and gallery of real anomalies |
 | v0.3 | September 2026 | Temperature regime, neighbour and weather cross-checks, preservation of genuine extremes, evaluation on four winter events |
-| v0.4 | September 2026 | Estimator contract for every detector, numpy-only core, streaming composite with serialisable state, optional forgetting, feeder-loss fault, hour-label alignment check between a forecast and its load (this release) |
-| v1.0 | December 2026 | Removal of the legacy functions, PyPI, documentation and examples on public data, better recall on dips and feeder loss |
-| v1.0 | December 2026 | Audit trail format, documentation, examples on public data, PyPI |
+| v0.4 | October 2026 | Estimator contract for every detector, numpy-only core, streaming composite with serialisable state, optional forgetting, feeder-loss fault, hour-label alignment check between a forecast and its load |
+| v0.5 | October 2026 | Faults kept out of the difference statistics, extremes that build over hours kept, optional feeder-loss detector, per-BA injection in the benchmark (this release) |
+| v1.0 | December 2026 | Removal of the legacy functions, audit trail format, documentation and examples on public data, PyPI |
 
 ## Development
 
