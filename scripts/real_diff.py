@@ -1,6 +1,12 @@
-"""Readings flagged on the series as published by two composite configurations: counts by reason, and the
-readings that only one of them flags."""
+"""Readings flagged on the series as published by the v0.4 composite and by another configuration: counts per
+series, and the readings that only one of them flags.
+
+    python scripts/real_diff.py '{}' results/v05/real_v05 [all]
+
+The first argument is the configuration (Sentinel keyword arguments, ``{}`` for the defaults); ``all`` runs every
+BA with a weather station for 2023 and 2024 instead of the benchmark ten for 2021 to 2024."""
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -17,8 +23,9 @@ from grid_sentinel.benchmark import (
 from grid_sentinel.detectors import Sentinel
 from grid_sentinel.pandas import from_series, regularize
 
-TIDY = Path("C:/Users/Ricardo Guerra/cardinalgrid-data/tidy")
-ISD = Path("C:/Users/Ricardo Guerra/cardinalgrid-data/isd")
+# data folders from the environment: GRID_SENTINEL_TIDY (scorecard tidy files) and GRID_SENTINEL_ISD (ISD-Lite cache)
+TIDY = Path(os.environ["GRID_SENTINEL_TIDY"])
+ISD = Path(os.environ["GRID_SENTINEL_ISD"])
 kw = json.loads(sys.argv[1])
 out = Path(sys.argv[2])
 ctx_of = make_context(TIDY, ISD, Path("docs/neighbors.csv"))
@@ -40,7 +47,7 @@ for ba in BAS:
         reg = regularize(s)
         v, t = from_series(reg)
         ctx = context_from_dict(ctx_of(ba, year))
-        a = Sentinel().predict(v, t, ctx)
+        a = Sentinel.v04().predict(v, t, ctx)
         b = Sentinel(**kw).predict(v, t, ctx)
         rows.append({"ba": ba, "year": year, "hours": int(np.isfinite(v).sum()), "v04": int(a.is_anomaly.sum()), "new": int(b.is_anomaly.sum()),
                      "only_v04": int((a.is_anomaly & ~b.is_anomaly).sum()), "only_new": int((b.is_anomaly & ~a.is_anomaly).sum())})

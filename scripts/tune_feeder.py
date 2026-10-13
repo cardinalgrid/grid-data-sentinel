@@ -1,6 +1,7 @@
 """Tuning loop for FeederLoss: share of dense injected losses found (per-series seeds) and readings flagged on the
 series as published, for several keyword sets, one process per set."""
 import json
+import os
 import sys
 from multiprocessing import Pool
 from pathlib import Path
@@ -19,8 +20,9 @@ from grid_sentinel.detectors import FeederLoss
 from grid_sentinel.pandas import from_series, regularize
 from grid_sentinel.synthetic import inject_anomalies
 
-TIDY = Path("C:/Users/Ricardo Guerra/cardinalgrid-data/tidy")
-ISD = Path("C:/Users/Ricardo Guerra/cardinalgrid-data/isd")
+# data folders from the environment: GRID_SENTINEL_TIDY (scorecard tidy files) and GRID_SENTINEL_ISD (ISD-Lite cache)
+TIDY = Path(os.environ["GRID_SENTINEL_TIDY"])
+ISD = Path(os.environ["GRID_SENTINEL_ISD"])
 SEEDS = (0, 1)
 
 
