@@ -53,6 +53,7 @@ class Sentinel(Detector):
         robust: bool = False,
         exclude_faults: bool | str = False,
         exclude_from: str = "both",
+        jump_guard: float | None = None,
     ):
         if extremes not in ("preserve", "off"):
             raise ValueError("extremes must be 'preserve' or 'off'")
@@ -80,6 +81,7 @@ class Sentinel(Detector):
             raise ValueError("exclude_from must be 'both', 'level' or 'diff'")
         self.exclude_faults = exclude_faults or False
         self.exclude_from = exclude_from
+        self.jump_guard = jump_guard
         self.reset()
 
     def reset(self) -> None:
@@ -91,6 +93,7 @@ class Sentinel(Detector):
         self._weather = WeatherCheck()
         self._prev_diff_raw = False
         self._prev_implausible = False
+        self._prev_ratio = float("nan")
 
     # ---- one reading -------------------------------------------------------------------------------
     def update(self, timestamp: Any, value: float, temperature_f: float = float("nan"),
@@ -106,6 +109,7 @@ class Sentinel(Detector):
             self._profile.update(timestamp, x, temperature_f=temperature_f, regime=regime, exclude=True)
             self._prev_diff_raw = False
             self._prev_implausible = False
+            self._prev_ratio = float("nan")
             return Decision(timestamp, x, 0.0, 1.0, False, "", float("nan"), checks)
 
         before = (self._level.get_state(), self._diff.get_state()) if self.exclude_faults else None
@@ -146,7 +150,11 @@ class Sentinel(Detector):
         if self.extremes == "preserve" and flag and reason not in ("stuck", "non_positive", "gross_ratio"):
             above = math.isfinite(expected) and x > expected
             used = [checks[name] for name in CHECK_NAMES if name in self.cross_checks]
-            if above and not preserve_one(True, True, used):
+            # a genuine extreme builds over hours; a reading far above the expectation whose predecessor was near it
+            # is a lone jump, and the cross-checks (which see the weather, not the jump) do not keep it
+            lone_jump = (self.jump_guard is not None and math.isfinite(ratio) and math.isfinite(self._prev_ratio)
+                         and (self._prev_ratio - 1.0) < self.jump_guard * (ratio - 1.0))
+            if above and not lone_jump and not preserve_one(True, True, used):
                 flag, reason = False, "extreme_kept"
         excluded = flag and (self.exclude_faults == "all" or reason in GROSS_REASONS)
         if before is not None and excluded:
@@ -160,6 +168,7 @@ class Sentinel(Detector):
                 if math.isfinite(expected) and expected > 0:
                     dif_state = {**dif_state, "prev": expected}
                 self._diff.set_state(dif_state)
+        self._prev_ratio = ratio
         return Decision(timestamp, x, float(score), 1.0, bool(flag), reason, expected, checks)
 
     # ---- series ------------------------------------------------------------------------------------
@@ -176,6 +185,7 @@ class Sentinel(Detector):
             "profile": self._profile.get_state(), "neighbors": self._neighbors.get_state(),
             "weather": self._weather.get_state(),
             "prev_diff_raw": self._prev_diff_raw, "prev_implausible": self._prev_implausible,
+            "prev_ratio": self._prev_ratio,
         }
 
     def set_state(self, state: dict[str, Any]) -> Sentinel:
@@ -188,4 +198,5 @@ class Sentinel(Detector):
         self._weather.set_state(state["weather"])
         self._prev_diff_raw = bool(state["prev_diff_raw"])
         self._prev_implausible = bool(state["prev_implausible"])
+        self._prev_ratio = float(state.get("prev_ratio", float("nan")))
         return self
