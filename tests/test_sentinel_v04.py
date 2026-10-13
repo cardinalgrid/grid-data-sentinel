@@ -133,6 +133,6 @@ def test_jump_guard_condemns_a_lone_step_but_not_one_the_neighbours_share(arctic
     guarded = Sentinel(jump_guard=0.5).predict(load, t, ctx)
     assert not guarded.is_anomaly[win].any()  # the neighbours step up in the same hour: a shared step, kept
     assert guarded.is_anomaly[spike]
-    alone = Sentinel(jump_guard=0.5, cross_checks=("profile", "weather")).predict(load, t, Context(temperature_f=(temp, t)))
+    alone = Sentinel(cross_checks=("profile", "weather")).predict(load, t, Context(temperature_f=(temp, t)))
     first = int(np.flatnonzero(win)[0])
     assert alone.is_anomaly[first]  # without neighbours the same step is a lone jump

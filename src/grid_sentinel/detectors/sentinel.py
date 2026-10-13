@@ -9,16 +9,17 @@ expectation then faces the cross-checks (profile, neighbours, weather): it stays
 least two of the available checks fail to confirm it as genuine, and is otherwise withdrawn as
 ``extreme_kept``. The expectation is built with base-flagged readings masked out.
 
-Since v0.5 two rules guard the statistics and the extremes (on by default), and a third is optional:
+Since v0.5 three rules guard the statistics and the extremes (all on by default):
 
 - ``exclude_faults`` / ``exclude_from``: a condemned reading does not update the eccentricity detector on first
   differences (``"diff"``), whose next difference is taken from the expectation instead, so that earlier faults
   do not widen the spread a later one is judged against; the threshold on differences is ``m_diff=4``.
 - ``keep_built``: a reading above the expectation whose predecessor already carried at least that share of its
   excess is kept whatever the cross-checks say; a heat wave or a cold morning builds over hours, a fault does not.
-- ``jump_guard`` (off by default): a reading far above the expectation whose predecessor was near it (carried less
-  than that share of the excess) is a lone jump, and the cross-checks do not keep it. It catches more spikes, but it
-  also condemns the first hour of a genuine extreme that arrives as a step, which the cross-checks would keep.
+- ``jump_guard``: a reading far above the expectation whose predecessor was near it (carried less than that share
+  of the excess) is a lone jump, and the cross-checks do not keep it, unless the neighbours' median load stepped up
+  in the same hour by at least ``jump_guard_share`` of the BA's own step. Without neighbour readings, the first hour
+  of a genuine extreme that arrives as a step is condemned.
 
 ``Sentinel.v04()`` returns the v0.4 configuration (and v0.3 behaviour); ``cross_checks=()`` with
 ``regime="load"``, ``extremes="off"`` and the v0.4 configuration is the v0.2 composite.
@@ -66,7 +67,7 @@ class Sentinel(Detector):
         robust: bool = False,
         exclude_faults: bool | str = "all",
         exclude_from: str = "diff",
-        jump_guard: float | None = None,
+        jump_guard: float | None = 0.5,
         keep_built: float | None = 0.5,
         jump_guard_share: float = 0.5,
     ):
