@@ -95,8 +95,11 @@ def inject_in_window(s: pd.Series, win: pd.DatetimeIndex, rate: float, seed: int
     return inj
 
 
-def make_figures(summ: pd.DataFrame, out: Path) -> None:
-    plt.style.use(Path(__file__).resolve().parents[1].parent / "notes" / "_template-ieee" / "ieee.mplstyle")
+def make_figures(summ: pd.DataFrame, out: Path, style: Path | None = None) -> None:
+    style = style or Path(__file__).resolve().parents[1].parent / "notes" / "_template-ieee" / "ieee.mplstyle"
+    if style.exists():  # the notes repository's figure style, when it is checked out next to this one
+        plt.style.use(style)
+    colors = plt.cm.tab20(np.linspace(0, 1, 20))
     events = [e["name"] for e in EVENTS]
     labels = {e["name"]: e["label"].replace("Winter Storm", "").replace("s Gerri", " Gerri").strip() for e in EVENTS}
     dets = [d for d in DETECTORS if d in set(summ["detector"])]
@@ -109,7 +112,7 @@ def make_figures(summ: pd.DataFrame, out: Path) -> None:
         fig, ax = plt.subplots(figsize=(7.16, 2.8))
         for i, d in enumerate(dets):
             vals = [summ[(summ["event"] == ev) & (summ["detector"] == d)][col].mean() for ev in events]
-            ax.bar(x + (i - len(dets) / 2 + 0.5) * w, vals, w, label=SHORT[d])
+            ax.bar(x + (i - len(dets) / 2 + 0.5) * w, vals, w, label=SHORT[d], color=colors[i % 20])
         ax.set_xticks(x, [labels[e] for e in events])
         ax.set_ylabel(ylabel)
         ax.legend(ncol=5, fontsize=6, frameon=False, loc="upper center", bbox_to_anchor=(0.5, -0.18))
@@ -117,9 +120,9 @@ def make_figures(summ: pd.DataFrame, out: Path) -> None:
         fig.savefig(out / f"{fig_name}.png", dpi=200, bbox_inches="tight")
         plt.close(fig)
     fig, ax = plt.subplots(figsize=(3.5, 2.6))
-    for d in dets:
+    for i, d in enumerate(dets):
         g = summ[summ["detector"] == d]
-        ax.scatter(g["flagged_share"], g["recall_in_window"], s=12, label=SHORT[d])
+        ax.scatter(g["flagged_share"], g["recall_in_window"], s=12, label=SHORT[d], color=colors[i % 20])
     ax.set_xlabel("Share of window flagged")
     ax.set_ylabel("Recall on injected faults")
     ax.legend(fontsize=5, frameon=False, ncol=2)
@@ -166,6 +169,7 @@ def main() -> int:
     ap.add_argument("--bas", nargs="*", default=None, help="subset of BAs (default: all with a station)")
     ap.add_argument("--events", nargs="*", default=None, help="subset of events (default: all four)")
     ap.add_argument("--resume", action="store_true", help="skip (event, BA) pairs already in by_ba.csv")
+    ap.add_argument("--style", type=Path, default=None, help="matplotlib style file for the figures")
     ap.add_argument("--variants", default=None,
                     help="JSON name -> Sentinel keyword arguments: run only sentinel_v3 (the v0.4 configuration) and these, "
                          "and leave the docs alone")
@@ -233,7 +237,7 @@ def main() -> int:
     }
     (a.out / "summary.json").write_text(json.dumps(meta, indent=2), encoding="utf-8")
     if not a.variants:
-        make_figures(summ, a.out)
+        make_figures(summ, a.out, a.style)
         write_docs(summ, meta, Path("docs/storms.md"))
     print(summ.round(3).to_string())
     return 0

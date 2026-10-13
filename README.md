@@ -120,7 +120,7 @@ Defaults were chosen from sensitivity grids (`scripts/tune.py`, `results/tuning.
 
 ## The four winter events
 
-For each of Winter Storm Uri (2021), Winter Storm Elliott (2022), Winter Storms Gerri and Heather (2024) and the January 2025 Arctic events, the 72 hours around each balancing authority's peak, on the series as reported: the share of BAs whose peak reading survives each detector, and, from a second run with faults injected into the same window, the recall on those faults. The FERC/NERC review of the January 2025 events records the largest under-forecasts of these storms early on, as the weather worsened; those are the readings a statistical filter is most likely to reject. Full tables, per-BA results and figures: `docs/storms.md`, `results/storms/`.
+For each of Winter Storm Uri (2021), Winter Storm Elliott (2022), Winter Storms Gerri and Heather (2024) and the January 2025 Arctic events, the 72 hours around each balancing authority's peak, on the series as reported: the share of BAs whose peak reading survives each detector, and, from a second run with faults injected into the same window, the recall on those faults. The FERC/NERC review of the January 2025 events records the largest under-forecasts of these storms early on, as the weather worsened; those are the readings a statistical filter is most likely to reject. Full tables, per-BA results and figures: `docs/storms.md`, `results/storms/`. The v0.5 composite keeps the same peaks as v0.3/v0.4 and flags half as many readings of the windows as reported.
 
 | Detector | Uri: peak kept / recall | Elliott | Gerri and Heather | January 2025 |
 |---|---|---|---|---|
@@ -128,7 +128,8 @@ For each of Winter Storm Uri (2021), Winter Storm Elliott (2022), Winter Storms 
 | Sparse autoencoder | 0.91 / 0.72 | 0.65 / 0.75 | 0.74 / 0.76 | 0.72 / 0.66 |
 | Modified z-score | 0.86 / 0.71 | 0.58 / 0.74 | 0.77 / 0.34 | 0.88 / 0.74 |
 | Composite v0.2 | 0.95 / 0.99 | 0.88 / 0.96 | 0.91 / 0.90 | 1.00 / 0.99 |
-| Composite v0.3 | 0.95 / 0.97 | 0.95 / 0.96 | 1.00 / 0.90 | 1.00 / 1.00 |
+| Composite v0.3/v0.4 | 0.95 / 0.97 | 0.95 / 0.96 | 1.00 / 0.90 | 1.00 / 1.00 |
+| Composite v0.5 | 0.95 / 0.97 | 0.95 / 0.98 | 1.00 / 0.90 | 1.00 / 1.00 |
 
 ![Share of BAs whose peak reading survives, per event](results/storms/fig2_peak_kept.png)
 
