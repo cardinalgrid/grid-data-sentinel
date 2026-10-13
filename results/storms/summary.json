@@ -1,6 +1,6 @@
 {
   "version": "0.5.0",
-  "generated": "2026-10-13T04:51:57+00:00",
+  "generated": "2026-10-13T06:02:30+00:00",
   "injection_rate_in_window": 0.02,
   "seed": 0,
   "events": {
@@ -266,15 +266,15 @@
     "elliott/sentinel_v5_profile_neighbors": {
       "flagged_share": 0.0006371455877668047,
       "peak_kept": 0.9534883720930233,
-      "recall_in_window": 0.9313953488372092,
-      "precision_adj_in_window": 0.9476744186046512,
+      "recall_in_window": 0.977906976744186,
+      "precision_adj_in_window": 0.9941860465116279,
       "bas": 43.0
     },
     "elliott/sentinel_v5_profile_weather": {
       "flagged_share": 0.0006371455877668047,
       "peak_kept": 0.9534883720930233,
-      "recall_in_window": 0.9081395348837209,
-      "precision_adj_in_window": 0.9244186046511628,
+      "recall_in_window": 0.977906976744186,
+      "precision_adj_in_window": 0.9941860465116279,
       "bas": 43.0
     },
     "elliott/teda_level": {
@@ -322,15 +322,15 @@
     "gerri_heather/sentinel_v5": {
       "flagged_share": 0.0012742911755336094,
       "peak_kept": 1.0,
-      "recall_in_window": 0.9004867495943754,
-      "precision_adj_in_window": 0.8914728682170543,
+      "recall_in_window": 0.9237425635478637,
+      "precision_adj_in_window": 0.9147286821705427,
       "bas": 43.0
     },
     "gerri_heather/sentinel_v5_distance_neighbors": {
       "flagged_share": 0.0012742911755336094,
       "peak_kept": 1.0,
-      "recall_in_window": 0.9004867495943754,
-      "precision_adj_in_window": 0.8914728682170543,
+      "recall_in_window": 0.9237425635478637,
+      "precision_adj_in_window": 0.9147286821705427,
       "bas": 43.0
     },
     "gerri_heather/sentinel_v5_no_extremes": {
@@ -343,15 +343,15 @@
     "gerri_heather/sentinel_v5_profile_neighbors": {
       "flagged_share": 0.0012742911755336094,
       "peak_kept": 1.0,
-      "recall_in_window": 0.9004867495943754,
-      "precision_adj_in_window": 0.8914728682170543,
+      "recall_in_window": 0.9237425635478637,
+      "precision_adj_in_window": 0.9147286821705427,
       "bas": 43.0
     },
     "gerri_heather/sentinel_v5_profile_weather": {
       "flagged_share": 0.0012742911755336094,
       "peak_kept": 1.0,
-      "recall_in_window": 0.9004867495943754,
-      "precision_adj_in_window": 0.8914728682170543,
+      "recall_in_window": 0.9237425635478637,
+      "precision_adj_in_window": 0.9147286821705427,
       "bas": 43.0
     },
     "gerri_heather/teda_level": {
@@ -406,8 +406,8 @@
     "january_2025/sentinel_v5_distance_neighbors": {
       "flagged_share": 0.00031857279388340236,
       "peak_kept": 1.0,
-      "recall_in_window": 0.9767441860465116,
-      "precision_adj_in_window": 0.9767441860465116,
+      "recall_in_window": 1.0,
+      "precision_adj_in_window": 1.0,
       "bas": 43.0
     },
     "january_2025/sentinel_v5_no_extremes": {
@@ -420,15 +420,15 @@
     "january_2025/sentinel_v5_profile_neighbors": {
       "flagged_share": 0.00031857279388340236,
       "peak_kept": 1.0,
-      "recall_in_window": 0.9767441860465116,
-      "precision_adj_in_window": 0.9767441860465116,
+      "recall_in_window": 1.0,
+      "precision_adj_in_window": 1.0,
       "bas": 43.0
     },
     "january_2025/sentinel_v5_profile_weather": {
       "flagged_share": 0.00031857279388340236,
       "peak_kept": 1.0,
-      "recall_in_window": 0.9302325581395349,
-      "precision_adj_in_window": 0.9302325581395349,
+      "recall_in_window": 1.0,
+      "precision_adj_in_window": 1.0,
       "bas": 43.0
     },
     "january_2025/teda_level": {
@@ -476,15 +476,15 @@
     "uri/sentinel_v5": {
       "flagged_share": 0.0012453300124533001,
       "peak_kept": 0.9545454545454546,
-      "recall_in_window": 0.9719873150105709,
-      "precision_adj_in_window": 0.9621212121212122,
+      "recall_in_window": 0.9947145877378436,
+      "precision_adj_in_window": 0.9848484848484849,
       "bas": 44.0
     },
     "uri/sentinel_v5_distance_neighbors": {
-      "flagged_share": 0.000933997509339975,
-      "peak_kept": 0.9772727272727273,
-      "recall_in_window": 0.9719873150105709,
-      "precision_adj_in_window": 0.9659090909090909,
+      "flagged_share": 0.0012453300124533001,
+      "peak_kept": 0.9545454545454546,
+      "recall_in_window": 0.9947145877378436,
+      "precision_adj_in_window": 0.9848484848484849,
       "bas": 44.0
     },
     "uri/sentinel_v5_no_extremes": {
@@ -495,17 +495,17 @@
       "bas": 44.0
     },
     "uri/sentinel_v5_profile_neighbors": {
-      "flagged_share": 0.000933997509339975,
-      "peak_kept": 0.9772727272727273,
-      "recall_in_window": 0.9719873150105709,
-      "precision_adj_in_window": 0.9659090909090909,
+      "flagged_share": 0.0012453300124533001,
+      "peak_kept": 0.9545454545454546,
+      "recall_in_window": 0.9947145877378436,
+      "precision_adj_in_window": 0.9848484848484849,
       "bas": 44.0
     },
     "uri/sentinel_v5_profile_weather": {
-      "flagged_share": 0.000933997509339975,
-      "peak_kept": 0.9772727272727273,
-      "recall_in_window": 0.9719873150105709,
-      "precision_adj_in_window": 0.9659090909090909,
+      "flagged_share": 0.0012453300124533001,
+      "peak_kept": 0.9545454545454546,
+      "recall_in_window": 0.9947145877378436,
+      "precision_adj_in_window": 0.9848484848484849,
       "bas": 44.0
     },
     "uri/teda_level": {

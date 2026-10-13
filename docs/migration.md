@@ -9,6 +9,8 @@ new defaults:
   before the profile has history, are not.
 - A reading above the expectation whose predecessor already carried at least half of its excess is kept
   (`extreme_kept`) even when the cross-checks do not confirm it: heat waves that 0.4 flagged are kept.
+- A reading far above the expectation whose predecessor was near it is no longer kept by the cross-checks unless
+  the neighbours stepped up in the same hour: more single spikes are caught. Pass `jump_guard=None` to turn it off.
 - `FeederLoss` is new and optional; the composite does not call it.
 - The benchmark's `sentinel_v3` entry is now `Sentinel.v04()`; the default composite is `sentinel_v5`.
 
