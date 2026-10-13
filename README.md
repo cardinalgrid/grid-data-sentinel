@@ -62,6 +62,8 @@ BANC reported the same 1,670 MW for 204 hours, then two weeks in which 80 hourly
 
 The first cold morning of the season in the Carolinas: demand peaks at 7 a.m. for the first time since March, 45% above what a calendar profile expects. This is not a fault, and neither composite raises an alarm. A detector built on the profile alone would raise its loudest alarm of the year here, which is why the profile is used to confirm, never to accuse.
 
+[docs/real_cases_v05.md](docs/real_cases_v05.md) shows where the v0.5 composite disagrees with v0.4 on the same public series: heat waves in California and New York that v0.4 flagged and v0.5 keeps, and a repeated 23:00 artifact in Salt River Project's 2023 series that v0.5 flags and v0.4 let pass.
+
 ## Benchmark on EIA-930 with injected faults
 
 Ten large balancing authorities, hourly demand for 2023 and 2024 from the EIA-930 balance files (via [ba-forecast-scorecard](https://github.com/cardinalgrid/ba-forecast-scorecard)), 0.5% of readings corrupted with labelled faults, every detector run on the corrupted series with its default settings.
