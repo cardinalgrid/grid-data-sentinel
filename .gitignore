@@ -17,3 +17,5 @@ data/
 
 # private debugging scripts
 scripts/_*.py
+results/v05_study/parts/
+results/v05_study/run.log
