@@ -52,5 +52,11 @@ references:
     issue: 24
     doi: 10.3390/en17246403
     authors:
+      - family-names: "Pimentel"
+        given-names: "Levi da Costa"
       - family-names: "Guerra Filho"
         given-names: "Ricardo Wagner Correia"
+      - family-names: "Villanueva"
+        given-names: "Juan Moises Mauricio"
+      - family-names: "Rodriguez"
+        given-names: "Yuri Percy Molina"
